@@ -116,7 +116,7 @@ Pastikan environment variables sudah di-set di dashboard Vercel.
 
 ## Credits
 
-- **Teddy Sapta Prayoga** — Manajemen & Kapten Tim TCO
+- **hmnf31** — Manajemen & Kapten Tim TCO
 - Seluruh anggota TCO Esports
 - [Chess.com](https://chess.com) — Platform turnamen Arena Kings
 - [Stockfish](https://stockfishchess.org) — Engine catur open-source
