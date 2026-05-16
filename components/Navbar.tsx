@@ -11,6 +11,7 @@ const navLinks = [
   { href: "/arena-training/play", label: "Arena Training", icon: Brain },
   { href: "/artikel", label: "Artikel" },
   { href: "/register", label: "Daftar Member" },
+  { href: "/sponsorship", label: "Sponsorship" },
   { href: "/admin/dashboard", label: "Admin" },
 ]
 

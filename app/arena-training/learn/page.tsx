@@ -228,23 +228,43 @@ export default function LearnPage() {
 
           {showHint && filtered[safeIdx] && (
             <div className="mt-4 rounded-xl border border-yellow-400/20 bg-yellow-400/[0.03] p-4">
-              <p className="text-xs text-yellow-400/80">Cari taktik {filtered[safeIdx].themes.join(", ")}</p>
+              <p className="text-xs text-yellow-400/80">
+                Petunjuk: Coba langkah <span className="font-bold text-white">{filtered[safeIdx].moves[0]}</span>
+                {filtered[safeIdx].themes.length > 0 && (
+                  <> — Tema: {filtered[safeIdx].themes.join(", ")}</>
+                )}
+              </p>
             </div>
           )}
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">Puzzle Info</h3>
-            {filtered[safeIdx] ? (
-              <div className="mt-3 space-y-2">
-                <div className="flex justify-between text-xs"><span className="text-white/40">Rating</span><span className="text-white/80">{filtered[safeIdx].rating}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-white/40">Themes</span><span className="text-white/80">{filtered[safeIdx].themes.join(", ")}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-white/40">Moves</span><span className="text-white/80">{filtered[safeIdx].moves.length}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-white/40">Progress</span><span className="text-cyan-400">{moveIdx}/{filtered[safeIdx].moves.length}</span></div>
-              </div>
-            ) : <p className="mt-3 text-xs text-white/30">No puzzles</p>}
-          </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">Puzzle Info</h3>
+              {filtered[safeIdx] ? (
+                <div className="mt-3 space-y-2">
+                  <div className="flex justify-between text-xs"><span className="text-white/40">Rating</span><span className="text-white/80">{filtered[safeIdx].rating}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-white/40">Themes</span><span className="text-white/80">{filtered[safeIdx].themes.join(", ")}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-white/40">Moves</span><span className="text-white/80">{filtered[safeIdx].moves.length}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-white/40">Progress</span><span className="text-cyan-400">{moveIdx}/{filtered[safeIdx].moves.length}</span></div>
+                </div>
+              ) : <p className="mt-3 text-xs text-white/30">No puzzles</p>}
+            </div>
+
+            <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.03] p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">Petunjuk Puzzle</h3>
+              {filtered[safeIdx] ? (
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-white/40">Giliran:</span>
+                    <span className="font-medium text-white/80">{new Chess(filtered[safeIdx].fen).turn() === "w" ? "Putih melangkah" : "Hitam melangkah"}</span>
+                  </div>
+                  <p className="text-xs text-white/60 leading-relaxed">
+                    Cari langkah terbaik untuk mendapatkan keuntungan. Tema: <span className="text-cyan-400">{filtered[safeIdx].themes.join(", ")}</span>
+                  </p>
+                </div>
+              ) : <p className="mt-3 text-xs text-white/30">No puzzles</p>}
+            </div>
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">Puzzle List</h3>

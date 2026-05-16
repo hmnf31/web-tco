@@ -3,13 +3,13 @@ import { Trophy, CalendarDays, ArrowLeft, TrendingUp, Users, Target } from "luci
 
 const articles = [
   {
-    title: "Juara 5 Arena Kings Maret 2026 — Awal Perjalanan TCO di Panggung Global",
-    date: "15 Maret 2026",
-    icon: Trophy,
+    title: "Juara 3 Arena Kings Mei 2026 — Podium Pertama TCO Esports!",
+    date: "25 Mei 2026",
+    icon: Target,
     content: [
-      "Bulan Maret 2026 menjadi saksi sejarah pertama TCO Esports dalam mengikuti kompetisi global — Arena Kings di Chess.com. Dengan persiapan yang matang dan semangat juang yang tinggi, tim TCO berhasil menembus persaingan sengit dan mengamankan posisi ke-5 di klasemen akhir.",
-      "Pencapaian ini merupakan hasil kerja keras seluruh anggota TCO yang berlomba-lomba mengumpulkan poin secara kolektif. Kapten tim, Teddy Sapta Prayoga, memimpin dengan skor tertinggi dan memberikan motivasi kepada seluruh anggota untuk terus berjuang di setiap sesi pertandingan.",
-      "\"Ini baru permulaan,\" ujar perwakilan manajemen TCO. \"Kami bangga dengan perjuangan semua anggota. Posisi ini menjadi motivasi untuk terus meningkatkan performa di bulan-bulan berikutnya.\"",
+      "Ini adalah momen yang dinanti-nantikan! Pada bulan Mei 2026, TCO Esports berhasil menembus posisi 3 besar Arena Kings Chess.com. Pencapaian ini menobatkan TCO sebagai salah satu klub catur online paling kompetitif di Indonesia di panggung global.",
+      "Perjalanan menuju podium ini tidaklah mudah. TCO harus bersaing dengan klub-klub kuat dari berbagai negara. Namun, berkat kerja keras, dedikasi, dan strategi yang tepat, TCO berhasil mengamankan posisi ke-3 dengan selisih poin yang tipis.",
+      "Keberhasilan ini disambut dengan antusiasme luar biasa oleh seluruh anggota TCO. Manajemen TCO mengucapkan terima kasih kepada setiap anggota yang telah berkontribusi, serta mengajak lebih banyak pemain untuk bergabung dan memperkuat tim menuju target berikutnya: Juara 1 Arena Kings!",
     ],
   },
   {
@@ -23,13 +23,13 @@ const articles = [
     ],
   },
   {
-    title: "Juara 3 Arena Kings Mei 2026 — Podium Pertama TCO Esports!",
-    date: "25 Mei 2026",
-    icon: Target,
+    title: "Juara 5 Arena Kings Maret 2026 — Awal Perjalanan TCO di Panggung Global",
+    date: "15 Maret 2026",
+    icon: Trophy,
     content: [
-      "Ini adalah momen yang dinanti-nantikan! Pada bulan Mei 2026, TCO Esports berhasil menembus posisi 3 besar Arena Kings Chess.com. Pencapaian ini menobatkan TCO sebagai salah satu klub catur online paling kompetitif di Indonesia di panggung global.",
-      "Perjalanan menuju podium ini tidaklah mudah. TCO harus bersaing dengan klub-klub kuat dari berbagai negara. Namun, berkat kerja keras, dedikasi, dan strategi yang tepat, TCO berhasil mengamankan posisi ke-3 dengan selisih poin yang tipis.",
-      "Keberhasilan ini disambut dengan antusiasme luar biasa oleh seluruh anggota TCO. Manajemen TCO mengucapkan terima kasih kepada setiap anggota yang telah berkontribusi, serta mengajak lebih banyak pemain untuk bergabung dan memperkuat tim menuju target berikutnya: Juara 1 Arena Kings!",
+      "Bulan Maret 2026 menjadi saksi sejarah pertama TCO Esports dalam mengikuti kompetisi global — Arena Kings di Chess.com. Dengan persiapan yang matang dan semangat juang yang tinggi, tim TCO berhasil menembus persaingan sengit dan mengamankan posisi ke-5 di klasemen akhir.",
+      "Pencapaian ini merupakan hasil kerja keras seluruh anggota TCO yang berlomba-lomba mengumpulkan poin secara kolektif. Kapten tim, Teddy Sapta Prayoga, memimpin dengan skor tertinggi dan memberikan motivasi kepada seluruh anggota untuk terus berjuang di setiap sesi pertandingan.",
+      "\"Ini baru permulaan,\" ujar perwakilan manajemen TCO. \"Kami bangga dengan perjuangan semua anggota. Posisi ini menjadi motivasi untuk terus meningkatkan performa di bulan-bulan berikutnya.\"",
     ],
   },
 ]

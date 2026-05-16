@@ -1,48 +1,83 @@
 "use client"
 
-import { useState } from "react"
-import { Swords, Castle, ChevronRight, ExternalLink, Clock } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Swords, Castle, ChevronRight, ExternalLink, Clock, X, Globe, Users, Trophy, Loader2 } from "lucide-react"
 
 const chessPlayers = [
-  { rank: 1, username: "blitzkkrieg", score: "2307" },
-  { rank: 2, username: "mal_21j", score: "2186" },
-  { rank: 3, username: "Sultan_Aulia", score: "2181" },
-  { rank: 4, username: "BaldwinKingsIV", score: "2142" },
-  { rank: 5, username: "TeddyPlays_IG", score: "2099" },
-  { rank: 6, username: "Kkjow", score: "2079" },
-  { rank: 7, username: "Blunders69", score: "2069" },
-  { rank: 8, username: "Abdi0324", score: "2028" },
-  { rank: 9, username: "Iyus_515", score: "2013" },
-  { rank: 10, username: "Harjay_TCO", score: "2011" },
-  { rank: 11, username: "LoveAyyme", score: "1996" },
-  { rank: 12, username: "Ai_isdarliansyah", score: "1949" },
-  { rank: 13, username: "Bobob77", score: "1903" },
-  { rank: 14, username: "Sulfancuk", score: "1891" },
-  { rank: 15, username: "Akun pemalu", score: "1889" },
-  { rank: 16, username: "Caturaga2018", score: "1847" },
-  { rank: 17, username: "supri_adi_22", score: "1808" },
-  { rank: 18, username: "Depri_i", score: "1792" },
-  { rank: 19, username: "Pak_Rt_05", score: "1785" },
-  { rank: 20, username: "shakabumi", score: "1761" },
-  { rank: 21, username: "Rusli_26", score: "1746" },
-  { rank: 22, username: "asaches03", score: "1705" },
-  { rank: 23, username: "Bung_iky", score: "1689" },
-  { rank: 24, username: "Streetchess 🤘", score: "1685" },
-  { rank: 25, username: "Restu_Azikusuma", score: "1681" },
-  { rank: 26, username: "diah89", score: "1654" },
-  { rank: 27, username: "TheDartVine", score: "1621" },
-  { rank: 28, username: "vozodd", score: "1571" },
-  { rank: 29, username: "Adikember", score: "1549" },
-  { rank: 30, username: "carilho_pablo_eskobar1993", score: "1542" },
-  { rank: 31, username: "TCO_Constantine", score: "1487" },
-  { rank: 32, username: "chris_amoeba", score: "1376" },
-  { rank: 33, username: "Afiatul", score: "1329" },
-  { rank: 34, username: "PutraRian", score: "1317" },
-  { rank: 35, username: "69hehehehehehehehehehe69", score: "1268" },
-  { rank: 36, username: "adwar3184", score: "1191" },
-  { rank: 37, username: "Dewacucibaju", score: "1170" },
-  { rank: 38, username: "pixelfern8", score: "962" },
-  { rank: 39, username: "szeschaa", score: "754" },
+  { username: "45had0w" },
+  { username: "69hehehehehehehehehehe69" },
+  { username: "aanmarino" },
+  { username: "Abdi0324" },
+  { username: "Abdul_493" },
+  { username: "adikember" },
+  { username: "adwar3184" },
+  { username: "afiatul" },
+  { username: "Ai_isdarliansyah" },
+  { username: "Akun_Pemalu" },
+  { username: "Akun_Pemaluu" },
+  { username: "andre_31_1993" },
+  { username: "arshakabumi" },
+  { username: "asaches03" },
+  { username: "BaldwinKingsIV" },
+  { username: "blitzkkrieg" },
+  { username: "Blunders69" },
+  { username: "bobob77" },
+  { username: "bung_iky" },
+  { username: "carilho_pablo_eskobar199" },
+  { username: "carilho_pablo_eskobar1993" },
+  { username: "caturaga2018" },
+  { username: "CH3VROLET" },
+  { username: "chessjunior0" },
+  { username: "Chris_Amoeba" },
+  { username: "Depri_i" },
+  { username: "Derpandora" },
+  { username: "dewacucibaju" },
+  { username: "diah89" },
+  { username: "El_NorthDoustan" },
+  { username: "Fans-TLID-RAFFY" },
+  { username: "Galih_Citra" },
+  { username: "gtempur" },
+  { username: "Harjay_TCO" },
+  { username: "Heex86" },
+  { username: "indra11611" },
+  { username: "IwanTambunan" },
+  { username: "Iyus_515" },
+  { username: "KingWalkVariations" },
+  { username: "KKajow" },
+  { username: "Kudojingkrak" },
+  { username: "Linnxyn" },
+  { username: "Liyaannnnnnn" },
+  { username: "LoveAyyme" },
+  { username: "mal_21j" },
+  { username: "Munaa377" },
+  { username: "Ochhi_03" },
+  { username: "Official_TCO" },
+  { username: "oke23q" },
+  { username: "Pak_RT_05" },
+  { username: "PangeranKe17" },
+  { username: "patris01" },
+  { username: "Pixelfern8" },
+  { username: "PutraRian" },
+  { username: "rais88" },
+  { username: "rendi-Yanto" },
+  { username: "Restu_Azikusuma" },
+  { username: "Revelation_T" },
+  { username: "runarunarunaruna" },
+  { username: "Shakabumi" },
+  { username: "StreetChess0502" },
+  { username: "Sulfancuk" },
+  { username: "SultanAulia" },
+  { username: "Supri_adi_22" },
+  { username: "szeschaa" },
+  { username: "TCO_Constantine" },
+  { username: "TCO_JAYA" },
+  { username: "TeddyPlays_IG" },
+  { username: "TheDartVine" },
+  { username: "vozodd" },
+  { username: "vpol3" },
+  { username: "W-indrayana" },
+  { username: "W_Ochhi" },
+  { username: "XICOLAGI" },
 ]
 
 const mlbbPlayers = [
@@ -53,8 +88,65 @@ const mlbbPlayers = [
   { id: 5, username: "RennChess", role: "Exp Lane", tier: "Legend" },
 ]
 
+type PlayerProfile = {
+  username: string
+  name: string
+  avatar: string
+  country: string
+  bullet: number
+  blitz: number
+  rapid: number
+}
+
+type ClubInfo = {
+  name: string
+  description: string
+  members: number
+}
+
 export default function DivisiPage() {
   const [tab, setTab] = useState<"chess" | "mlbb">("chess")
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerProfile | null>(null)
+  const [loadingPlayer, setLoadingPlayer] = useState(false)
+  const [clubInfo, setClubInfo] = useState<ClubInfo | null>(null)
+  const [loadingClub, setLoadingClub] = useState(true)
+
+  useEffect(() => {
+    async function fetchClub() {
+      try {
+        const res = await fetch("https://api.chess.com/pub/club/turnamen-tiktok-chess-online-club")
+        if (!res.ok) return
+        const data = await res.json()
+        setClubInfo({ name: data.name, description: data.description, members: data.members_count })
+      } catch { /* */ } finally { setLoadingClub(false) }
+    }
+    fetchClub()
+  }, [])
+
+  async function openPlayerPopup(username: string) {
+    setLoadingPlayer(true)
+    setSelectedPlayer(null)
+    try {
+      const [profileRes, statsRes] = await Promise.all([
+        fetch(`https://api.chess.com/pub/player/${username}`),
+        fetch(`https://api.chess.com/pub/player/${username}/stats`),
+      ])
+      if (!profileRes.ok || !statsRes.ok) throw new Error("Gagal")
+      const profile = await profileRes.json()
+      const stats = await statsRes.json()
+      setSelectedPlayer({
+        username: profile.username,
+        name: profile.name || profile.username,
+        avatar: profile.avatar || "",
+        country: (profile.country || "").split("/").pop() || "",
+        bullet: stats.chess_bullet?.last?.rating || 0,
+        blitz: stats.chess_blitz?.last?.rating || 0,
+        rapid: stats.chess_rapid?.last?.rating || 0,
+      })
+    } catch {
+      setSelectedPlayer({ username, name: username, avatar: "", country: "", bullet: 0, blitz: 0, rapid: 0 })
+    } finally { setLoadingPlayer(false) }
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -103,8 +195,19 @@ export default function DivisiPage() {
                 Divisi catur TCO berkompetisi di turnamen reguler Arena Kings dan Liga Komunitas.
                 Kami memiliki pemain-pemain berbakat dari seluruh Indonesia.
               </p>
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">Club Stats</h3>
+                {loadingClub ? (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-white/40"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</div>
+                ) : clubInfo ? (
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs"><Users className="h-3 w-3 text-cyan-400" /><span className="text-white/60">Anggota:</span><span className="font-medium text-white">{clubInfo.members}</span></div>
+                    <div className="flex items-center gap-2 text-xs"><Trophy className="h-3 w-3 text-yellow-400" /><span className="text-white/60">Peringkat:</span><span className="font-medium text-white">#3 Arena Kings Mei 2026</span></div>
+                  </div>
+                ) : <p className="mt-2 text-xs text-white/30">Gagal memuat data club</p>}
+              </div>
               <a
-                href="https://chess.com/club/tco"
+                href="https://www.chess.com/club/turnamen-tiktok-chess-online-club"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 flex items-center gap-2 text-sm font-medium text-cyan-400 transition-colors hover:text-cyan-300"
@@ -114,36 +217,33 @@ export default function DivisiPage() {
               </a>
             </div>
 
-            {/* Chess Leaderboard */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-              <h3 className="text-lg font-bold text-white">Top Players ({chessPlayers.length})</h3>
+             {/* Chess Leaderboard */}
+             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
+               <h3 className="text-lg font-bold text-white">Member TCO Internal ({chessPlayers.length})</h3>
               <div className="mt-4 max-h-[600px] space-y-2 overflow-y-auto">
-                {chessPlayers.map((p) => (
-                  <a
+                {chessPlayers.map((p, i) => (
+                  <button
                     key={p.username}
-                    href={`https://chess.com/member/${p.username}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between rounded-xl border border-white/5 px-4 py-3 transition-all hover:border-cyan-400/20"
+                    onClick={() => openPlayerPopup(p.username)}
+                    className="flex w-full items-center justify-between rounded-xl border border-white/5 px-4 py-3 transition-all hover:border-cyan-400/20 text-left"
                   >
                     <div className="flex items-center gap-3">
                       <span
                         className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                          p.rank === 1
+                          i === 0
                             ? "bg-yellow-400/10 text-yellow-400"
-                            : p.rank === 2
+                            : i === 1
                               ? "bg-gray-400/10 text-gray-400"
-                              : p.rank === 3
+                              : i === 2
                                 ? "bg-orange-400/10 text-orange-400"
                                 : "bg-white/5 text-white/50"
                         }`}
                       >
-                        {p.rank}
+                        {i + 1}
                       </span>
                       <span className="text-sm text-white/80">{p.username}</span>
                     </div>
-                    <span className="text-sm text-cyan-400">{p.score}</span>
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
@@ -194,10 +294,69 @@ export default function DivisiPage() {
         )}
       </div>
 
+      {/* Player Detail Popup */}
+      {(loadingPlayer || selectedPlayer) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setSelectedPlayer(null); setLoadingPlayer(false) }}>
+          <div className="relative mx-4 w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => { setSelectedPlayer(null); setLoadingPlayer(false) }}
+              className="absolute right-4 top-4 rounded-lg p-1 text-white/40 transition-colors hover:text-white">
+              <X className="h-4 w-4" />
+            </button>
+
+            {loadingPlayer ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+                <p className="text-sm text-white/50">Memuat data pemain...</p>
+              </div>
+            ) : selectedPlayer && (
+              <>
+                <div className="flex flex-col items-center gap-3">
+                  {selectedPlayer.avatar ? (
+                    <img src={selectedPlayer.avatar} alt={selectedPlayer.username}
+                      className="h-20 w-20 rounded-full border-2 border-cyan-400/30 object-cover" />
+                  ) : (
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-cyan-400/30 bg-cyan-400/10 text-2xl font-bold text-cyan-400">
+                      {selectedPlayer.username.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-white">{selectedPlayer.name}</p>
+                    <p className="text-xs text-cyan-400">@{selectedPlayer.username}</p>
+                  </div>
+                  {selectedPlayer.country && (
+                    <div className="flex items-center gap-1 text-xs text-white/40">
+                      <Globe className="h-3 w-3" /> {selectedPlayer.country}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-5 grid grid-cols-3 gap-2">
+                  {[
+                    { label: "Bullet", rating: selectedPlayer.bullet, color: "text-red-400", border: "border-red-400/20" },
+                    { label: "Blitz", rating: selectedPlayer.blitz, color: "text-orange-400", border: "border-orange-400/20" },
+                    { label: "Rapid", rating: selectedPlayer.rapid, color: "text-green-400", border: "border-green-400/20" },
+                  ].map((s) => (
+                    <div key={s.label} className={`rounded-xl border ${s.border} bg-white/[0.02] p-3 text-center`}>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-white/40">{s.label}</p>
+                      <p className={`mt-1 text-lg font-bold ${s.color}`}>{s.rating || "-"}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <a href={`https://chess.com/member/${selectedPlayer.username}`} target="_blank" rel="noopener noreferrer"
+                  className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 py-2.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105">
+                  <ExternalLink className="h-3.5 w-3.5" /> Lihat Profil di Chess.com
+                </a>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* CTA */}
       <div className="mt-12 text-center">
         <a
-          href={tab === "chess" ? "https://chess.com/club/tco" : "#"}
+          href={tab === "chess" ? "https://www.chess.com/club/turnamen-tiktok-chess-online-club" : "#"}
           target={tab === "chess" ? "_blank" : undefined}
           rel={tab === "chess" ? "noopener noreferrer" : undefined}
           className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 hover:shadow-xl hover:shadow-cyan-500/30"

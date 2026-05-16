@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Music, Play, Pause, SkipForward, SkipBack, ChevronDown, ExternalLink } from "lucide-react"
+import { Music, Play, Pause, SkipForward, SkipBack, ChevronDown, ExternalLink, Volume2, Volume1, VolumeX } from "lucide-react"
 
 const PLAYLIST = [
   { title: "TCO Sang Juara", id: "mGbEFipbGIY" },
@@ -15,9 +15,23 @@ export default function MusicPlayer() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [playerReady, setPlayerReady] = useState(false)
+  const [volume, setVolumeState] = useState(50)
   const playerRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const indexRef = useRef(-1)
+  const volumeSyncRef = useRef(false)
+
+  useEffect(() => {
+    if (playerRef.current && playerReady && !volumeSyncRef.current) {
+      playerRef.current.setVolume(volume)
+      volumeSyncRef.current = true
+    }
+  }, [playerReady, volume])
+
+  function setVolume(v: number) {
+    setVolumeState(v)
+    if (playerRef.current) playerRef.current.setVolume(v)
+  }
 
   useEffect(() => { indexRef.current = currentIndex }, [currentIndex])
 
@@ -69,16 +83,23 @@ export default function MusicPlayer() {
   function prev() { playSong((currentIndex - 1 + PLAYLIST.length) % PLAYLIST.length) }
 
   return (
-    <>
+    <div>
       <div className="fixed bottom-0 left-0 z-50 opacity-0 pointer-events-none h-0 w-0 overflow-hidden" aria-hidden="true">
         <div ref={containerRef} id="yt-player-container" />
       </div>
 
-      <button onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-4 right-4 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-110"
-        title={isOpen ? "Tutup Musik" : "Buka Musik"}>
-        <Music className="h-4 w-4" />
-      </button>
+      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
+        {!isOpen && (
+          <span className="animate-pulse whitespace-nowrap rounded-lg bg-slate-950/80 px-3 py-1.5 text-[10px] text-white/60 backdrop-blur-sm">
+            Klik disini, untuk membuka musik player Playlist TCO!
+          </span>
+        )}
+        <button onClick={() => setIsOpen(!isOpen)}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-110"
+          title={isOpen ? "Tutup Musik" : "Buka Musik"}>
+          <Music className="h-4 w-4" />
+        </button>
+      </div>
 
       <div className={`fixed bottom-0 left-0 right-0 z-40 transition-all duration-300 border-t border-white/10 ${
         isOpen ? "translate-y-0" : "translate-y-full"
@@ -91,7 +112,7 @@ export default function MusicPlayer() {
                 <span className="text-xs font-medium text-white/70">TCO Player</span>
                 {!playerReady && <span className="text-[10px] text-white/30 italic">Loading...</span>}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <button onClick={prev}
                   className={`rounded-lg border p-1.5 text-white/50 transition-all hover:border-cyan-400/30 hover:text-cyan-400 ${currentIndex < 0 ? "pointer-events-none border-white/5 opacity-30" : "border-white/10"}`}>
                   <SkipBack className="h-3.5 w-3.5" />
@@ -104,8 +125,22 @@ export default function MusicPlayer() {
                   className={`rounded-lg border p-1.5 text-white/50 transition-all hover:border-cyan-400/30 hover:text-cyan-400 ${currentIndex < 0 ? "pointer-events-none border-white/5 opacity-30" : "border-white/10"}`}>
                   <SkipForward className="h-3.5 w-3.5" />
                 </button>
+                <div className="ml-2 flex items-center gap-1.5">
+                  <button onClick={() => setVolume(volume > 0 ? 0 : 50)}
+                    className="rounded-lg border border-white/10 p-1.5 text-white/50 transition-all hover:border-cyan-400/30 hover:text-cyan-400">
+                    {volume === 0 ? <VolumeX className="h-3.5 w-3.5" /> : volume < 30 ? <Volume1 className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={volume}
+                    onChange={(e) => setVolume(parseInt(e.target.value))}
+                    className="w-20 h-1 accent-cyan-400 cursor-pointer"
+                  />
+                </div>
               </div>
-              <div className="text-right text-[10px] text-white/30">
+              <div className="text-right text-[10px] text-white/30 min-w-[40px]">
                 {currentIndex >= 0 ? `${currentIndex + 1}/${PLAYLIST.length}` : `${PLAYLIST.length} lagu`}
               </div>
             </div>
@@ -133,6 +168,6 @@ export default function MusicPlayer() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }
