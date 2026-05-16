@@ -9,6 +9,24 @@ const MATERIAL: Record<string, number> = {
 const CENTER = new Set(["d4", "d5", "e4", "e5"])
 const CENTER_EXT = new Set(["c3", "c4", "c5", "c6", "d3", "d6", "e3", "e6", "f3", "f4", "f5", "f6"])
 
+function movePriority(m: { san: string; from: string; to: string; piece: string }): number {
+  if (m.san === "O-O" || m.san === "O-O-O") return 200
+  if (m.piece === "p" && (m.to === "d4" || m.to === "e4" || m.to === "d5" || m.to === "e5")) return 50
+  if (m.piece === "n" && /^[fc][36]$/.test(m.to)) return 30
+  if (m.piece === "b" && /^[bcfg][3456]$/.test(m.to)) return 30
+  return 0
+}
+
+function hasMaterial(fen: string): boolean {
+  let total = 0
+  for (const ch of fen.split(" ")[0]) {
+    if ("12345678/".includes(ch)) continue
+    if ("pPkK".includes(ch)) continue
+    total += Math.abs(MATERIAL[ch] || 0)
+  }
+  return total > 200
+}
+
 function evaluateBoard(fen: string): number {
   const parts = fen.split(" ")
   const board = parts[0]
@@ -70,23 +88,39 @@ function evaluateBoard(fen: string): number {
   return score / 100
 }
 
-function alphaBeta(chess: Chess, depth: number, alpha: number, beta: number, maximizing: boolean): number {
-  if (depth === 0 || chess.isGameOver()) return evaluateBoard(chess.fen()) * (maximizing ? 1 : -1)
+const DEFAULT_MAX_NODES = 500
+
+type SearchCtx = { nodes: number; limit: number }
+
+function alphaBeta(chess: Chess, depth: number, alpha: number, beta: number, maximizing: boolean, ctx: SearchCtx): number {
+  if (ctx.nodes >= ctx.limit) return evaluateBoard(chess.fen()) * (maximizing ? 1 : -1)
+  if (chess.isCheck() && depth > 0) depth++
+  if (depth === 0 || chess.isGameOver()) { ctx.nodes++; return evaluateBoard(chess.fen()) * (maximizing ? 1 : -1) }
 
   const moves = chess.moves({ verbose: true })
-  if (moves.length === 0) return evaluateBoard(chess.fen()) * (maximizing ? 1 : -1)
+  if (moves.length === 0) { ctx.nodes++; return evaluateBoard(chess.fen()) * (maximizing ? 1 : -1) }
 
   moves.sort((a, b) => {
     const capA = a.captured ? MATERIAL[a.captured.toUpperCase()] || 0 : 0
     const capB = b.captured ? MATERIAL[b.captured.toUpperCase()] || 0 : 0
-    return capB - capA
+    return (capB + movePriority(b)) - (capA + movePriority(a))
   })
+
+  if (depth >= 3 && !chess.isCheck() && ctx.nodes < ctx.limit && hasMaterial(chess.fen())) {
+    const fenParts = chess.fen().split(" ")
+    fenParts[1] = fenParts[1] === "w" ? "b" : "w"
+    const nullChess = new Chess(fenParts.join(" "))
+    const nullScore = -alphaBeta(nullChess, depth - 3, -beta, -beta + 1, !maximizing, ctx)
+    if (nullScore >= beta) return beta
+  }
 
   if (maximizing) {
     let best = -Infinity
     for (const move of moves) {
+      ctx.nodes++
+      if (ctx.nodes >= ctx.limit) break
       chess.move(move.san)
-      const val = alphaBeta(chess, depth - 1, alpha, beta, false)
+      const val = alphaBeta(chess, depth - 1, alpha, beta, false, ctx)
       chess.undo()
       best = Math.max(best, val)
       alpha = Math.max(alpha, val)
@@ -96,8 +130,10 @@ function alphaBeta(chess: Chess, depth: number, alpha: number, beta: number, max
   } else {
     let best = Infinity
     for (const move of moves) {
+      ctx.nodes++
+      if (ctx.nodes >= ctx.limit) break
       chess.move(move.san)
-      const val = alphaBeta(chess, depth - 1, alpha, beta, true)
+      const val = alphaBeta(chess, depth - 1, alpha, beta, true, ctx)
       chess.undo()
       best = Math.min(best, val)
       beta = Math.min(beta, val)
@@ -107,33 +143,53 @@ function alphaBeta(chess: Chess, depth: number, alpha: number, beta: number, max
   }
 }
 
-function getBestMoveLightweight(fen: string, depth: number = 2): { bestmove: string; evaluation: number; from?: string; to?: string } {
+function getBestMoveLightweight(fen: string, depth: number = 4, maxNodes: number = DEFAULT_MAX_NODES): { bestmove: string; evaluation: number; from?: string; to?: string } {
   const chess = new Chess(fen)
   const isWhite = chess.turn() === "w"
-  const moves = chess.moves({ verbose: true })
-  if (moves.length === 0) return { bestmove: "", evaluation: 0 }
+  const allMoves = chess.moves({ verbose: true })
+  if (allMoves.length === 0) return { bestmove: "", evaluation: 0 }
 
-  moves.sort((a, b) => {
-    const capA = a.captured ? MATERIAL[a.captured.toUpperCase()] || 0 : 0
-    const capB = b.captured ? MATERIAL[b.captured.toUpperCase()] || 0 : 0
-    return capB - capA
-  })
+  if (depth < 1) depth = 1
+  if (depth > 10) depth = 10
 
+  const pvScores = new Map<string, number>()
+  let bestResult = { bestmove: allMoves[0].san, evaluation: 0, from: allMoves[0].from, to: allMoves[0].to }
   let bestScore = isWhite ? -Infinity : Infinity
-  let bestMove = moves[0]
 
-  for (const move of moves) {
-    chess.move(move.san)
-    const score = alphaBeta(chess, depth, -Infinity, Infinity, !isWhite)
-    chess.undo()
+  for (let d = 1; d <= depth; d++) {
+    const ctx: SearchCtx = { nodes: 0, limit: maxNodes }
+    let foundAny = false
 
-    if (isWhite ? score > bestScore : score < bestScore) {
-      bestScore = score
-      bestMove = move
+    allMoves.sort((a, b) => {
+      const sa = pvScores.get(a.san)
+      const sb = pvScores.get(b.san)
+      if (sa !== undefined && sb !== undefined && sa !== sb) return sb - sa
+      const capA = a.captured ? MATERIAL[a.captured.toUpperCase()] || 0 : 0
+      const capB = b.captured ? MATERIAL[b.captured.toUpperCase()] || 0 : 0
+      return (capB + movePriority(b)) - (capA + movePriority(a))
+    })
+
+    for (const move of allMoves) {
+      ctx.nodes++
+      if (ctx.nodes >= ctx.limit) break
+      chess.move(move.san)
+      const score = alphaBeta(chess, d - 1, -Infinity, Infinity, !isWhite, ctx)
+      chess.undo()
+
+      pvScores.set(move.san, score)
+
+      if (isWhite ? score > bestScore : score < bestScore) {
+        bestScore = score
+        bestResult = { bestmove: move.san, evaluation: score, from: move.from, to: move.to }
+        foundAny = true
+      }
     }
+
+    if (ctx.nodes >= ctx.limit) break
+    if (!foundAny && d > 1) break
   }
 
-  return { bestmove: bestMove.san, evaluation: bestScore, from: bestMove.from, to: bestMove.to }
+  return bestResult
 }
 
 export class LozzaEngine {
@@ -143,7 +199,7 @@ export class LozzaEngine {
     this.ready = true
   }
 
-  getBestMove(fen: string, depth?: number, moveHistory?: string[]): { bestmove: string; evaluation: number; from?: string; to?: string } {
+  getBestMove(fen: string, depth?: number, moveHistory?: string[], maxNodes?: number): { bestmove: string; evaluation: number; from?: string; to?: string } {
     if (moveHistory) {
       const bookMove = getBookMove(moveHistory)
       if (bookMove) {
@@ -154,7 +210,7 @@ export class LozzaEngine {
         } catch { /* fall through */ }
       }
     }
-    return getBestMoveLightweight(fen, depth ?? 4)
+    return getBestMoveLightweight(fen, depth ?? 4, maxNodes ?? DEFAULT_MAX_NODES)
   }
 
   evaluatePosition(fen: string): number {

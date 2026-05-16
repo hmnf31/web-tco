@@ -28,63 +28,69 @@ const TIME_PRESETS: { mode: TimeMode; label: string; minutes: number }[] = [
   { mode: "none", label: "No Time", minutes: 0 },
 ]
 
-type BotInfo = { name: string; rating: number; isStockfish: boolean }
+type BotInfo = { name: string; rating: number; isEngine: boolean }
 
 const TCO_PLAYERS: BotInfo[] = [
-  { name: "blitzkkrieg", rating: 2307, isStockfish: false },
-  { name: "mal_21j", rating: 2186, isStockfish: false },
-  { name: "Sultan_Aulia", rating: 2181, isStockfish: false },
-  { name: "BaldwinKingsIV", rating: 2142, isStockfish: false },
-  { name: "TeddyPlays_IG", rating: 2099, isStockfish: false },
-  { name: "Kkjow", rating: 2079, isStockfish: false },
-  { name: "Blunders69", rating: 2069, isStockfish: false },
-  { name: "Abdi0324", rating: 2028, isStockfish: false },
-  { name: "Iyus_515", rating: 2013, isStockfish: false },
-  { name: "Harjay_TCO", rating: 2011, isStockfish: false },
-  { name: "LoveAyyme", rating: 1996, isStockfish: false },
-  { name: "Ai_isdarliansyah", rating: 1949, isStockfish: false },
-  { name: "Bobob77", rating: 1903, isStockfish: false },
-  { name: "Sulfancuk", rating: 1891, isStockfish: false },
-  { name: "Akun pemalu", rating: 1889, isStockfish: false },
-  { name: "Caturaga2018", rating: 1847, isStockfish: false },
-  { name: "supri_adi_22", rating: 1808, isStockfish: false },
-  { name: "Depri_i", rating: 1792, isStockfish: false },
-  { name: "Pak_Rt_05", rating: 1785, isStockfish: false },
-  { name: "shakabumi", rating: 1761, isStockfish: false },
-  { name: "Rusli_26", rating: 1746, isStockfish: false },
-  { name: "asaches03", rating: 1705, isStockfish: false },
-  { name: "Bung_iky", rating: 1689, isStockfish: false },
-  { name: "Streetchess 🤘", rating: 1685, isStockfish: false },
-  { name: "Restu_Azikusuma", rating: 1681, isStockfish: false },
-  { name: "diah89", rating: 1654, isStockfish: false },
-  { name: "TheDartVine", rating: 1621, isStockfish: false },
-  { name: "vozodd", rating: 1571, isStockfish: false },
-  { name: "Adikember", rating: 1549, isStockfish: false },
-  { name: "carilho_pablo_eskobar1993", rating: 1542, isStockfish: false },
-  { name: "TCO_Constantine", rating: 1487, isStockfish: false },
-  { name: "chris_amoeba", rating: 1376, isStockfish: false },
-  { name: "Afiatul", rating: 1329, isStockfish: false },
-  { name: "PutraRian", rating: 1317, isStockfish: false },
-  { name: "69hehehehehehehehehehe69", rating: 1268, isStockfish: false },
-  { name: "adwar3184", rating: 1191, isStockfish: false },
-  { name: "Dewacucibaju", rating: 1170, isStockfish: false },
-  { name: "pixelfern8", rating: 962, isStockfish: false },
-  { name: "szeschaa", rating: 754, isStockfish: false },
+  { name: "blitzkkrieg", rating: 2307, isEngine: false },
+  { name: "mal_21j", rating: 2186, isEngine: false },
+  { name: "Sultan_Aulia", rating: 2181, isEngine: false },
+  { name: "BaldwinKingsIV", rating: 2142, isEngine: false },
+  { name: "TeddyPlays_IG", rating: 2099, isEngine: false },
+  { name: "Kkjow", rating: 2079, isEngine: false },
+  { name: "Blunders69", rating: 2069, isEngine: false },
+  { name: "Abdi0324", rating: 2028, isEngine: false },
+  { name: "Iyus_515", rating: 2013, isEngine: false },
+  { name: "Harjay_TCO", rating: 2011, isEngine: false },
+  { name: "LoveAyyme", rating: 1996, isEngine: false },
+  { name: "Ai_isdarliansyah", rating: 1949, isEngine: false },
+  { name: "Bobob77", rating: 1903, isEngine: false },
+  { name: "Sulfancuk", rating: 1891, isEngine: false },
+  { name: "Akun pemalu", rating: 1889, isEngine: false },
+  { name: "Caturaga2018", rating: 1847, isEngine: false },
+  { name: "supri_adi_22", rating: 1808, isEngine: false },
+  { name: "Depri_i", rating: 1792, isEngine: false },
+  { name: "Pak_Rt_05", rating: 1785, isEngine: false },
+  { name: "shakabumi", rating: 1761, isEngine: false },
+  { name: "Rusli_26", rating: 1746, isEngine: false },
+  { name: "asaches03", rating: 1705, isEngine: false },
+  { name: "Bung_iky", rating: 1689, isEngine: false },
+  { name: "Streetchess 🤘", rating: 1685, isEngine: false },
+  { name: "Restu_Azikusuma", rating: 1681, isEngine: false },
+  { name: "diah89", rating: 1654, isEngine: false },
+  { name: "TheDartVine", rating: 1621, isEngine: false },
+  { name: "vozodd", rating: 1571, isEngine: false },
+  { name: "Adikember", rating: 1549, isEngine: false },
+  { name: "carilho_pablo_eskobar1993", rating: 1542, isEngine: false },
+  { name: "TCO_Constantine", rating: 1487, isEngine: false },
+  { name: "chris_amoeba", rating: 1376, isEngine: false },
+  { name: "Afiatul", rating: 1329, isEngine: false },
+  { name: "PutraRian", rating: 1317, isEngine: false },
+  { name: "69hehehehehehehehehehe69", rating: 1268, isEngine: false },
+  { name: "adwar3184", rating: 1191, isEngine: false },
+  { name: "Dewacucibaju", rating: 1170, isEngine: false },
+  { name: "pixelfern8", rating: 962, isEngine: false },
+  { name: "szeschaa", rating: 754, isEngine: false },
 ]
 
 const BOT_OPTIONS: BotInfo[] = [
   ...TCO_PLAYERS,
-  { name: "Lozza", rating: 1200, isStockfish: true },
+  { name: "Lozza", rating: 1200, isEngine: true },
 ]
 
 function getBotDepth(rating: number, timeMode: TimeMode): number {
-  let baseDepth = 1
-  if (rating >= 2000) baseDepth = 3
-  else if (rating >= 1600) baseDepth = 2
-  else baseDepth = 1
+  if (rating >= 2400) return 8
+  if (rating >= 2100) return 6
+  if (rating >= 1800) return 4
+  if (rating >= 1500) return 3
+  return 2
+}
 
-  const timeLimit: Record<TimeMode, number> = { bullet: 2, blitz: 3, rapid: 4, custom: 4, none: 4 }
-  return Math.min(baseDepth, timeLimit[timeMode] || 4)
+function getMaxNodes(timeMode: TimeMode, customMinutes: number): number {
+  if (timeMode === "bullet") return 500
+  if (timeMode === "blitz") return 1000
+  if (timeMode === "rapid") return 2000
+  if (timeMode === "custom") return Math.min(customMinutes * 400, 2000)
+  return 2000
 }
 
 function getBotDelayMs(timeMode: TimeMode, customMinutes: number): number {
@@ -126,7 +132,7 @@ export default function PlayBotPage() {
   const movesRef = useRef(moves)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  const activeElo = bot.isStockfish ? botElo : bot.rating
+  const activeElo = bot.isEngine ? botElo : bot.rating
 
   useEffect(() => { gameRef.current = game }, [game])
   useEffect(() => { botThinkingRef.current = botThinking }, [botThinking])
@@ -203,10 +209,11 @@ export default function PlayBotPage() {
     setBotThinking(true)
 
     const depth = getBotDepth(activeElo, timeMode)
+    const maxNodes = getMaxNodes(timeMode, customMinutes)
     const delay = getBotDelayMs(timeMode, customMinutes)
 
     setTimeout(() => {
-      const result = engine.getBestMove(gameRef.current.fen(), depth, movesRef.current)
+      const result = engine.getBestMove(gameRef.current.fen(), depth, movesRef.current, maxNodes)
       if (!result.bestmove) { thinkingRef.current = false; botMovePendingRef.current = false; setBotThinking(false); return }
 
       const g = new Chess(gameRef.current.fen())
@@ -371,7 +378,7 @@ export default function PlayBotPage() {
         <div className="text-center">
           <Bot className="mx-auto h-12 w-12 text-cyan-400" />
           <h1 className="mt-4 text-2xl font-bold text-white">VS Bot Training</h1>
-          <p className="mt-1 text-sm text-white/50">Pilih lawan dari anggota TCO atau Stockfish</p>
+          <p className="mt-1 text-sm text-white/50">Pilih lawan dari anggota TCO atau Lozza Engine</p>
           {engineReady && (
             <span className="mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-medium bg-cyan-400/10 text-cyan-400">
               <Zap className="h-3 w-3" /> Engine Siap
@@ -394,14 +401,14 @@ export default function PlayBotPage() {
                   <option key={p.name} value={p.name} className="bg-slate-950">{p.name} (Elo {p.rating})</option>
                 ))}
               </optgroup>
-              <optgroup label="— Engine —" className="bg-slate-950">
-                <option value="Lozza" className="bg-slate-950">Lozza NNUE</option>
+              <optgroup label="— Lozza Engine —" className="bg-slate-950">
+                <option value="Lozza" className="bg-slate-950">Lozza Engine</option>
               </optgroup>
             </select>
           </div>
 
           {/* Elo slider — only for Lozza engine */}
-          {bot.isStockfish && (
+          {bot.isEngine && (
             <div>
               <label className="text-sm font-medium text-white/70">Level (Elo: {botElo})</label>
               <input type="range" min={800} max={2800} step={100} value={botElo}
@@ -410,7 +417,7 @@ export default function PlayBotPage() {
               <div className="mt-1 flex justify-between text-xs text-white/30"><span>800</span><span>2800</span></div>
             </div>
           )}
-          {!bot.isStockfish && (
+          {!bot.isEngine && (
             <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.03] p-3">
               <div className="flex items-center gap-2 text-xs text-cyan-400">
                 <Users className="h-3.5 w-3.5" />
@@ -470,7 +477,7 @@ export default function PlayBotPage() {
           {isFallback ? (
             <span className="flex items-center gap-1 rounded-full bg-yellow-400/10 px-2 py-0.5 text-[10px] text-yellow-400"><Zap className="h-3 w-3" /> Light Mode</span>
           ) : (
-            <span className="flex items-center gap-1 rounded-full bg-cyan-400/10 px-2 py-0.5 text-[10px] text-cyan-400"><Cpu className="h-3 w-3" /> Stockfish</span>
+            <span className="flex items-center gap-1 rounded-full bg-cyan-400/10 px-2 py-0.5 text-[10px] text-cyan-400"><Cpu className="h-3 w-3" /> Lozza</span>
           )}
         </div>
         <button onClick={resetGame}
