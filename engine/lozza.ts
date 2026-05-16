@@ -1,4 +1,5 @@
 import { Chess } from "chess.js"
+import { getBookMove } from "./opening-book"
 
 const MATERIAL: Record<string, number> = {
   p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000,
@@ -9,9 +10,13 @@ const CENTER = new Set(["d4", "d5", "e4", "e5"])
 const CENTER_EXT = new Set(["c3", "c4", "c5", "c6", "d3", "d6", "e3", "e6", "f3", "f4", "f5", "f6"])
 
 function evaluateBoard(fen: string): number {
-  const board = fen.split(" ")[0]
+  const parts = fen.split(" ")
+  const board = parts[0]
+  const castlingRights = parts[2] || "-"
   let score = 0
   let idx = 0
+  let wKingSq = ""
+  let bKingSq = ""
 
   for (const ch of board) {
     if (ch === "/") continue
@@ -25,6 +30,8 @@ function evaluateBoard(fen: string): number {
     const fileCh = String.fromCharCode(97 + file)
     const rankNum = 8 - rank
     const sq = fileCh + rankNum
+
+    if (piece === "k") { if (isWhite) wKingSq = sq; else bKingSq = sq }
 
     let pos = 0
     if (piece === "p") {
@@ -48,6 +55,17 @@ function evaluateBoard(fen: string): number {
     score += val + pos
     idx++
   }
+
+  // Castling bonuses
+  if (wKingSq === "g1") score += 35
+  else if (wKingSq === "c1") score += 30
+  else if (wKingSq === "e1" && castlingRights.includes("K")) score -= 15
+  else if (wKingSq === "e1" && castlingRights.includes("Q")) score -= 10
+
+  if (bKingSq === "g8") score -= 35
+  else if (bKingSq === "c8") score -= 30
+  else if (bKingSq === "e8" && castlingRights.includes("k")) score += 15
+  else if (bKingSq === "e8" && castlingRights.includes("q")) score += 10
 
   return score / 100
 }
@@ -125,7 +143,17 @@ export class LozzaEngine {
     this.ready = true
   }
 
-  getBestMove(fen: string, depth?: number): { bestmove: string; evaluation: number; from?: string; to?: string } {
+  getBestMove(fen: string, depth?: number, moveHistory?: string[]): { bestmove: string; evaluation: number; from?: string; to?: string } {
+    if (moveHistory) {
+      const bookMove = getBookMove(moveHistory)
+      if (bookMove) {
+        const c = new Chess(fen)
+        try {
+          const m = c.move(bookMove, { strict: true })
+          if (m) return { bestmove: bookMove, evaluation: 0, from: m.from, to: m.to }
+        } catch { /* fall through */ }
+      }
+    }
     return getBestMoveLightweight(fen, depth ?? 4)
   }
 

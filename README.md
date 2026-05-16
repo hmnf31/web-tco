@@ -123,4 +123,5 @@ Pastikan environment variables sudah di-set di dashboard Vercel.
 
 ---
 
-© 2026 TCO Esports. All Rights Reserved. Powered by Gens Una Sumus.
+© 2026 TCO Esports. All Rights Reserved. Powered by TCO.
+

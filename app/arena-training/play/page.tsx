@@ -123,12 +123,14 @@ export default function PlayBotPage() {
   const thinkingRef = useRef(false)
   const botMovePendingRef = useRef(false)
   const botThinkingRef = useRef(false)
+  const movesRef = useRef(moves)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   const activeElo = bot.isStockfish ? botElo : bot.rating
 
   useEffect(() => { gameRef.current = game }, [game])
   useEffect(() => { botThinkingRef.current = botThinking }, [botThinking])
+  useEffect(() => { movesRef.current = moves }, [moves])
 
   useEffect(() => {
     (async () => {
@@ -153,11 +155,10 @@ export default function PlayBotPage() {
     return () => clearTimeout(timer)
   }, [gameStarted, gameOver]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Timer countdown — pauses when bot is thinking
+  // Timer — decreases whoever's turn it is every second
   useEffect(() => {
     if (!gameStarted || gameOver || timeMode === "none") return
     timerRef.current = setInterval(() => {
-      if (botThinkingRef.current) return
       const g = gameRef.current
       if (g.turn() === "w") {
         setPlayerTime((t) => Math.max(0, t - 1))
@@ -205,7 +206,7 @@ export default function PlayBotPage() {
     const delay = getBotDelayMs(timeMode, customMinutes)
 
     setTimeout(() => {
-      const result = engine.getBestMove(gameRef.current.fen(), depth)
+      const result = engine.getBestMove(gameRef.current.fen(), depth, movesRef.current)
       if (!result.bestmove) { thinkingRef.current = false; botMovePendingRef.current = false; setBotThinking(false); return }
 
       const g = new Chess(gameRef.current.fen())
@@ -247,49 +248,52 @@ export default function PlayBotPage() {
     }, delay)
   }, [engine, gameOver, playerColor, isBotTurn, activeElo, timeMode, customMinutes, bot.name])
 
+  function applyPlayerMove(from: string, to: string, promo?: string): boolean {
+    if (!gameStarted || gameOver || isBotTurn() || botThinking) return false
+    const g = new Chess(gameRef.current.fen())
+    try {
+      const move = g.move({ from: from as Square, to: to as Square, promotion: promo || "q" })
+      if (!move) return false
+      setLegalSquares([])
+      setSelectedSquare(null)
+      setLastMove({ from, to })
+      gameRef.current = g
+      setGame(g)
+      setFen(g.fen())
+      setMoves(g.history())
+      setCommentary((prev) => [...prev.slice(-29), `Kamu (${playerColor === "white" ? "Putih" : "Hitam"}): ${move.san}`])
+      if (g.isGameOver()) {
+        setGameOver(true)
+        if (g.isCheckmate()) {
+          const winner = g.turn() === "w" ? "Hitam" : "Putih"
+          const loser = g.turn() === "w" ? "Putih" : "Hitam"
+          setGameResult(`${winner} menang! ${loser} kalah.`)
+          setCommentary((prev) => [...prev, `${winner} menang! Checkmate.`])
+        } else if (g.isDraw()) {
+          setGameResult("Hasil imbang (Draw)")
+          setCommentary((prev) => [...prev, "Game berakhir draw."])
+        } else {
+          setGameResult("Game Over")
+        }
+        return true
+      }
+      doBotMove()
+      return true
+    } catch { return false }
+  }
+
   function onSquareClick({ square }: { square: string }) {
     if (!gameStarted || gameOver || isBotTurn() || botThinking) return
     const g = new Chess(gameRef.current.fen())
     const piece = g.get(square as Square)
 
     if (selectedSquare) {
-      try {
-        const move = g.move({ from: selectedSquare, to: square, promotion: "q" })
-        if (move) {
-          setLegalSquares([])
-          setSelectedSquare(null)
-          setLastMove({ from: selectedSquare, to: square })
-          gameRef.current = g
-          setGame(g)
-          setFen(g.fen())
-          setMoves(g.history())
-          setCommentary((prev) => [...prev.slice(-29), `Kamu (${playerColor === "white" ? "Putih" : "Hitam"}): ${move.san}`])
-          if (g.isGameOver()) {
-            setGameOver(true)
-            if (g.isCheckmate()) {
-              const winner = g.turn() === "w" ? "Hitam" : "Putih"
-              const loser = g.turn() === "w" ? "Putih" : "Hitam"
-              setGameResult(`${winner} menang! ${loser} kalah.`)
-              setCommentary((prev) => [...prev, `${winner} menang! Checkmate.`])
-            } else if (g.isDraw()) {
-              setGameResult("Hasil imbang (Draw)")
-              setCommentary((prev) => [...prev, "Game berakhir draw."])
-            } else {
-              setGameResult("Game Over")
-            }
-            return
-          }
-          doBotMove()
-          return
-        }
-      } catch { /* not a valid move */ }
-
+      if (applyPlayerMove(selectedSquare, square)) return
       if (piece && piece.color === (playerColor === "white" ? "w" : "b")) {
         setSelectedSquare(square)
         setLegalSquares(g.moves({ square: square as Square, verbose: true }).map((m) => m.to))
         return
       }
-
       setSelectedSquare(null)
       setLegalSquares([])
       return
@@ -299,6 +303,11 @@ export default function PlayBotPage() {
       setSelectedSquare(square)
       setLegalSquares(g.moves({ square: square as Square, verbose: true }).map((m) => m.to))
     }
+  }
+
+  function onPieceDrop(args: { sourceSquare?: string | null; targetSquare?: string | null }): boolean {
+    if (!args.sourceSquare || !args.targetSquare) return false
+    return applyPlayerMove(args.sourceSquare, args.targetSquare)
   }
 
   function startGame(color: "white" | "black") {
@@ -347,12 +356,13 @@ export default function PlayBotPage() {
     position: fen,
     boardOrientation,
     onSquareClick,
+    onPieceDrop,
     boardStyle: { borderRadius: "12px", boxShadow: "0 0 30px rgba(0, 210, 255, 0.1)" },
     darkSquareStyle: { backgroundColor: "#1e293b" },
     lightSquareStyle: { backgroundColor: "#334155" },
     showNotation: true,
     squareStyles: sqStyles,
-    allowDragging: false,
+    allowDragging: true,
   }
 
   if (!gameStarted) {
