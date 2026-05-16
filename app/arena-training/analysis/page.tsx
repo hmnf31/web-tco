@@ -3,11 +3,11 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Chess, type Square } from "chess.js"
 import { ChessboardProvider, Chessboard } from "react-chessboard"
-import { StockfishEngine, classifyMove, getCentipawnLoss } from "@/engine/stockfish"
+import { LozzaEngine, classifyMove, getCentipawnLoss } from "@/engine/lozza"
 import EvaluationBar from "@/components/chess/EvaluationBar"
 import {
   Search, FileText, ExternalLink, ChevronLeft, ChevronRight,
-  AlertCircle, Zap, Brain, RotateCcw, Play, Pause, SkipBack, SkipForward
+  AlertCircle, Zap, Brain, RotateCcw, Play, Pause, SkipBack, SkipForward, Loader2
 } from "lucide-react"
 
 type Tab = "chesscom" | "lichess" | "pgn"
@@ -46,15 +46,25 @@ export default function AnalysisPage() {
   const [error, setError] = useState("")
   const [gamesList, setGamesList] = useState<GameInfo[]>([])
   const [selectedGame, setSelectedGame] = useState<GameInfo | null>(null)
-  const [engine] = useState(() => new StockfishEngine())
+  const [engine] = useState(() => new LozzaEngine())
   const [engineReady, setEngineReady] = useState(false)
   const [evaluation, setEvaluation] = useState(0)
   const [mate, setMate] = useState<number | null>(null)
   const [hasResults, setHasResults] = useState(false)
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null)
   const [playMode, setPlayMode] = useState(false)
+  const [coachComment, setCoachComment] = useState("")
   const abortRef = useRef(false)
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  const COACH_ADVICE: Record<string, string> = {
+    Best: "Langkah terbaik! Maintain tekanan.",
+    Excellent: "Langkah hampir sempurna!",
+    Good: "Langkah solid, pertahankan.",
+    Inaccuracy: "Kurang akurat. Coba cari alternatif yang lebih baik.",
+    Mistake: "Kesalahan! Perhatikan kalkulasi dengan lebih teliti.",
+    Blunder: "Blunder! Kamu kehilangan materi atau posisi.",
+  }
 
   useEffect(() => {
     async function init() { await engine.init(); setEngineReady(true) }
@@ -65,6 +75,16 @@ export default function AnalysisPage() {
   useEffect(() => {
     return () => { if (playIntervalRef.current) clearInterval(playIntervalRef.current) }
   }, [])
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("analysisPgn")
+      if (stored) {
+        localStorage.removeItem("analysisPgn")
+        loadPGN(stored)
+      }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!playMode) return
@@ -209,7 +229,7 @@ export default function AnalysisPage() {
   function goToMove(index: number) {
     setPlayMode(false)
     setCurrentMoveIndex(index)
-    if (index === -1) { const c = new Chess(); setGameFen(c.fen()); setEvaluation(0); setLastMove(null); return }
+    if (index === -1) { const c = new Chess(); setGameFen(c.fen()); setEvaluation(0); setLastMove(null); setCoachComment(""); return }
     const chess = new Chess()
     for (let i = 0; i <= index; i++) chess.move(moves[i])
     setGameFen(chess.fen())
@@ -217,6 +237,7 @@ export default function AnalysisPage() {
     const hist = chess.history({ verbose: true })
     const lm = hist[hist.length - 1]
     if (lm) setLastMove({ from: lm.from, to: lm.to })
+    if (analysis[index]) setCoachComment(COACH_ADVICE[analysis[index].classification.label] || "")
   }
 
   function togglePlay() {
@@ -443,6 +464,20 @@ export default function AnalysisPage() {
                 <div className="scale-75 origin-top"><EvaluationBar evaluation={evaluation} mate={mate} /></div>
               </div>
             </div>
+
+            {coachComment && (
+              <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.03] p-3">
+                <div className="flex items-start gap-2">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cyan-400/10">
+                    <Brain className="h-3.5 w-3.5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium text-cyan-400">Virtual Coach</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-white/60">{coachComment}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="max-h-[400px] overflow-y-auto rounded-xl border border-white/10 bg-white/[0.03] p-3">
               <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">

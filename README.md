@@ -10,7 +10,7 @@ Platform web resmi **TCO Esports**, komunitas catur online & Mobile Legends terb
 | TypeScript | Type safety |
 | Tailwind CSS v4 | Utility-first styling, dark theme |
 | Supabase (Free Tier) | Database backend untuk registrasi member |
-| Stockfish.js (WASM) | Engine catur untuk analisis & bot training |
+| Lozza Engine | Engine catur untuk analisis & bot training — synchronous alpha-beta + heuristic eval |
 | chess.js | Logika permainan catur client-side |
 | react-chessboard | Papan catur interaktif React |
 | Lucide React | Icon set |
@@ -29,18 +29,17 @@ Platform web resmi **TCO Esports**, komunitas catur online & Mobile Legends terb
 
 ### Pendaftaran Member (`/register`)
 - Google Form embedded untuk pendaftaran anggota baru
-- Integrasi dengan database Supabase (via API route)
 
 ### Divisi (`/divisi`)
-- **Chess Division** — Leaderboard pemain dengan rating, link ke profil Chess.com
+- **Chess Division** — Leaderboard 40 pemain dengan rating, link ke profil Chess.com
 - **MLBB Division** — Roster tim inti, status recruitment
 
 ### Arena Training (`/arena-training/*`)
 Paket fitur latihan catur interaktif:
 
-- **VS Bot** (`/arena-training/play`) — Main melawan bot dengan personality & level berbeda, evaluasi real-time, coach virtual, export PGN
+- **VS Bot** (`/arena-training/play`) — Main melawan 39 pemain TCO asli atau Lozza engine; depth adaptif berdasarkan Elo & mode waktu (bullet depth 2, blitz 3, rapid 4); timer countdown pause saat bot thinking; virtual coach; evaluation bar; export & analisis game
 - **Game Analysis** (`/arena-training/analysis`) — Analisis permainan dari PGN, Chess.com, atau Lichess; auto-play moves; klasifikasi langkah (Best/Excellent/Mistake/Blunder)
-- **Puzzle Academy** (`/arena-training/learn`) — Teka-teki taktik dengan tingkat kesulitan, hint system, tracking skor
+- **Puzzle Academy** (`/arena-training/learn`) — Teka-teki taktik dengan tingkat kesulitan, hint system, skip button
 
 ### Admin Dashboard (`/admin/dashboard`)
 - Password gate
@@ -99,8 +98,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 │   └── chess/
 │       └── EvaluationBar.tsx
 ├── engine/
-│   └── stockfish.ts          # Stockfish WASM + lightweight engine
-├── public/engine/            # Stockfish WASM assets
+│   └── lozza.ts              # LozzaEngine — synchronous alpha-beta + heuristic eval
+├── public/engine/
+│   └── lozza.js              # Lozza engine file
 └── next.config.ts
 ```
 
@@ -119,7 +119,7 @@ Pastikan environment variables sudah di-set di dashboard Vercel.
 - **hmnf31** — Manajemen & Kapten Tim TCO
 - Seluruh anggota TCO Esports
 - [Chess.com](https://chess.com) — Platform turnamen Arena Kings
-- [Stockfish](https://stockfishchess.org) — Engine catur open-source
+- [Lozza](https://github.com/op12no2/lozza) — Engine catur NNUE JavaScript oleh Colin Jenkins (referensi arsitektur)
 
 ---
 
