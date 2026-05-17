@@ -1,573 +1,451 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Chess, type Square } from "chess.js"
-import { ChessboardProvider, Chessboard } from "react-chessboard"
-import { LozzaEngine } from "@/engine/lozza"
+import Chessground from "@react-chess/chessground"
+import { motion, AnimatePresence } from "framer-motion"
 import EvaluationBar from "@/components/chess/EvaluationBar"
-import { Play, Bot, Zap, Cpu, RotateCcw, Clock, Loader2, Users } from "lucide-react"
+import { useChessContext, TIME_PRESETS, type BotInfo } from "@/contexts/ChessContext"
+import { usePlayController } from "@/hooks/usePlayController"
+import { BOT_PERSONALITIES, createTCOPlayerList, fetchAllTCOPlayerStats, type TCOPlayerStats } from "@/engine/bot-personalities"
+import {
+  Play, Bot, Zap, Cpu, RotateCcw, Clock, Loader2, Users,
+  ChevronDown, Shield, Crosshair, Brain,
+  MessageCircle, Sword, Target, Gamepad2,
+} from "lucide-react"
+import type { Key } from "chessground/types"
 
-const COACH = [
-  "Langkahmu kurang akurat! Coba perhatikan perwira yang tidak dijaga.",
-  "Waspada! Lawan mengincar skakmat di sisi Raja.",
-  "Bagus! Kendali pusat papan sangat penting.",
-  "Jangan terburu-buru, evaluasi dulu semua kemungkinan.",
-  "Coba pertimbangkan untuk mengembangkan perwira ringanmu.",
-  "Perhatikan struktur pionmu!",
-  "Kamu kehilangan materi, coba cari taktik untuk mengimbangi.",
-  "Langkah yang solid! Pertahankan tekanan.",
-]
+const tcoPlayerList = createTCOPlayerList()
 
-type TimeMode = "bullet" | "blitz" | "rapid" | "custom" | "none"
-
-const TIME_PRESETS: { mode: TimeMode; label: string; minutes: number }[] = [
-  { mode: "bullet", label: "Bullet 1m", minutes: 1 },
-  { mode: "blitz", label: "Blitz 3m", minutes: 3 },
-  { mode: "rapid", label: "Rapid 10m", minutes: 10 },
-  { mode: "custom", label: "Custom", minutes: 0 },
-  { mode: "none", label: "No Time", minutes: 0 },
-]
-
-type BotInfo = { name: string; rating: number; isEngine: boolean }
-
-const TCO_PLAYERS: BotInfo[] = [
-  { name: "45had0w", rating: 1800, isEngine: false },
-  { name: "69hehehehehehehehehehe69", rating: 1200, isEngine: false },
-  { name: "aanmarino", rating: 1600, isEngine: false },
-  { name: "Abdi0324", rating: 2000, isEngine: false },
-  { name: "Abdul_493", rating: 1700, isEngine: false },
-  { name: "adikember", rating: 1500, isEngine: false },
-  { name: "adwar3184", rating: 1100, isEngine: false },
-  { name: "afiatul", rating: 1300, isEngine: false },
-  { name: "Ai_isdarliansyah", rating: 1900, isEngine: false },
-  { name: "Akun_Pemalu", rating: 1400, isEngine: false },
-  { name: "Akun_Pemaluu", rating: 1400, isEngine: false },
-  { name: "andre_31_1993", rating: 1600, isEngine: false },
-  { name: "arshakabumi", rating: 1700, isEngine: false },
-  { name: "asaches03", rating: 1700, isEngine: false },
-  { name: "BaldwinKingsIV", rating: 2100, isEngine: false },
-  { name: "blitzkkrieg", rating: 2300, isEngine: false },
-  { name: "Blunders69", rating: 2000, isEngine: false },
-  { name: "bobob77", rating: 1900, isEngine: false },
-  { name: "bung_iky", rating: 1600, isEngine: false },
-  { name: "carilho_pablo_eskobar199", rating: 1500, isEngine: false },
-  { name: "carilho_pablo_eskobar1993", rating: 1500, isEngine: false },
-  { name: "caturaga2018", rating: 1800, isEngine: false },
-  { name: "CH3VROLET", rating: 1600, isEngine: false },
-  { name: "chessjunior0", rating: 1200, isEngine: false },
-  { name: "Chris_Amoeba", rating: 1300, isEngine: false },
-  { name: "Depri_i", rating: 1700, isEngine: false },
-  { name: "Derpandora", rating: 1200, isEngine: false },
-  { name: "dewacucibaju", rating: 1100, isEngine: false },
-  { name: "diah89", rating: 1600, isEngine: false },
-  { name: "El_NorthDoustan", rating: 1400, isEngine: false },
-  { name: "Fans-TLID-RAFFY", rating: 1000, isEngine: false },
-  { name: "Galih_Citra", rating: 1500, isEngine: false },
-  { name: "gtempur", rating: 1100, isEngine: false },
-  { name: "Harjay_TCO", rating: 2000, isEngine: false },
-  { name: "Heex86", rating: 1200, isEngine: false },
-  { name: "indra11611", rating: 1100, isEngine: false },
-  { name: "IwanTambunan", rating: 1300, isEngine: false },
-  { name: "Iyus_515", rating: 2000, isEngine: false },
-  { name: "KingWalkVariations", rating: 1800, isEngine: false },
-  { name: "KKajow", rating: 2000, isEngine: false },
-  { name: "Kudojingkrak", rating: 1000, isEngine: false },
-  { name: "Linnxyn", rating: 1200, isEngine: false },
-  { name: "Liyaannnnnnn", rating: 1000, isEngine: false },
-  { name: "LoveAyyme", rating: 1900, isEngine: false },
-  { name: "mal_21j", rating: 2100, isEngine: false },
-  { name: "Munaa377", rating: 1700, isEngine: false },
-  { name: "Ochhi_03", rating: 1200, isEngine: false },
-  { name: "Official_TCO", rating: 1800, isEngine: false },
-  { name: "oke23q", rating: 1200, isEngine: false },
-  { name: "Pak_RT_05", rating: 1700, isEngine: false },
-  { name: "PangeranKe17", rating: 1600, isEngine: false },
-  { name: "patris01", rating: 1300, isEngine: false },
-  { name: "Pixelfern8", rating: 900, isEngine: false },
-  { name: "PutraRian", rating: 1300, isEngine: false },
-  { name: "rais88", rating: 1200, isEngine: false },
-  { name: "rendi-Yanto", rating: 1500, isEngine: false },
-  { name: "Restu_Azikusuma", rating: 1600, isEngine: false },
-  { name: "Revelation_T", rating: 1600, isEngine: false },
-  { name: "runarunarunaruna", rating: 1000, isEngine: false },
-  { name: "Shakabumi", rating: 1700, isEngine: false },
-  { name: "StreetChess0502", rating: 1600, isEngine: false },
-  { name: "Sulfancuk", rating: 1800, isEngine: false },
-  { name: "SultanAulia", rating: 2100, isEngine: false },
-  { name: "Supri_adi_22", rating: 1800, isEngine: false },
-  { name: "szeschaa", rating: 700, isEngine: false },
-  { name: "TCO_Constantine", rating: 1400, isEngine: false },
-  { name: "TCO_JAYA", rating: 1800, isEngine: false },
-  { name: "TeddyPlays_IG", rating: 2000, isEngine: false },
-  { name: "TheDartVine", rating: 1600, isEngine: false },
-  { name: "vozodd", rating: 1500, isEngine: false },
-  { name: "vpol3", rating: 1100, isEngine: false },
-  { name: "W-indrayana", rating: 1200, isEngine: false },
-  { name: "W_Ochhi", rating: 1200, isEngine: false },
-  { name: "XICOLAGI", rating: 1000, isEngine: false },
-]
-
-const BOT_OPTIONS: BotInfo[] = [
-  ...TCO_PLAYERS,
-  { name: "Lozza", rating: 1200, isEngine: true },
-]
-
-function getBotDepth(rating: number, timeMode: TimeMode): number {
-  if (rating >= 2400) return 8
-  if (rating >= 2100) return 6
-  if (rating >= 1800) return 4
-  if (rating >= 1500) return 3
-  return 2
+function buildTCOPlayerList(statsMap?: Record<string, TCOPlayerStats>): BotInfo[] {
+  return tcoPlayerList.map((p) => {
+    const pers = BOT_PERSONALITIES[p.name]
+    const stat = statsMap?.[p.name]
+    return {
+      name: p.name,
+      rating: stat?.rating || p.rating,
+      isEngine: false,
+      style: pers?.style || "solid",
+      avatarUrl: stat?.avatarUrl || pers?.avatarUrl,
+    }
+  })
 }
 
-function getMaxNodes(timeMode: TimeMode, customMinutes: number): number {
-  if (timeMode === "bullet") return 500
-  if (timeMode === "blitz") return 1000
-  if (timeMode === "rapid") return 2000
-  if (timeMode === "custom") return Math.min(customMinutes * 400, 2000)
-  return 2000
+// Moved inside component as botOptions
+
+const STYLE_ICONS: Record<string, typeof Sword> = {
+  aggressive: Sword,
+  solid: Shield,
+  positional: Target,
+  tactical: Crosshair,
 }
 
-function getBotDelayMs(timeMode: TimeMode, customMinutes: number): number {
-  if (timeMode === "bullet") return 100
-  if (timeMode === "blitz") return 300
-  if (timeMode === "rapid") return 600
-  if (timeMode === "custom") return Math.min(customMinutes * 100, 1000)
-  return 400
+const STYLE_COLORS: Record<string, string> = {
+  aggressive: "text-red-400 bg-red-400/10 border-red-400/30",
+  solid: "text-blue-400 bg-blue-400/10 border-blue-400/30",
+  positional: "text-cyan-400 bg-cyan-400/10 border-cyan-400/30",
+  tactical: "text-purple-400 bg-purple-400/10 border-purple-400/30",
 }
 
 export default function PlayBotPage() {
-  const [game, setGame] = useState(new Chess())
-  const [fen, setFen] = useState(game.fen())
-  const [engine] = useState(() => new LozzaEngine())
-  const [engineReady, setEngineReady] = useState(false)
-  const [isFallback, setIsFallback] = useState(false)
-  const [gameStarted, setGameStarted] = useState(false)
-  const [gameOver, setGameOver] = useState(false)
-  const [playerColor, setPlayerColor] = useState<"white" | "black">("white")
-  const [bot, setBot] = useState<BotInfo>(BOT_OPTIONS[0])
-  const [botElo, setBotElo] = useState(1200)
-  const [timeMode, setTimeMode] = useState<TimeMode>("none")
-  const [customMinutes, setCustomMinutes] = useState(5)
-  const [playerTime, setPlayerTime] = useState(0)
-  const [botTime, setBotTime] = useState(0)
-  const [evaluation, setEvaluation] = useState(0)
-  const [moves, setMoves] = useState<string[]>([])
-  const [coachText, setCoachText] = useState("")
-  const [commentary, setCommentary] = useState<string[]>([])
-  const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null)
-  const [legalSquares, setLegalSquares] = useState<string[]>([])
-  const [selectedSquare, setSelectedSquare] = useState<string | null>(null)
-  const [botThinking, setBotThinking] = useState(false)
-  const [gameResult, setGameResult] = useState<string | null>(null)
-  const gameRef = useRef(game)
-  const thinkingRef = useRef(false)
-  const botMovePendingRef = useRef(false)
-  const botThinkingRef = useRef(false)
-  const movesRef = useRef(moves)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-
-  const activeElo = bot.isEngine ? botElo : bot.rating
-
-  useEffect(() => { gameRef.current = game }, [game])
-  useEffect(() => { botThinkingRef.current = botThinking }, [botThinking])
-  useEffect(() => { movesRef.current = moves }, [moves])
+  const ctx = useChessContext()
+  const controller = usePlayController()
+  const [showBotList, setShowBotList] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [gameHistory, setGameHistory] = useState<{ botName: string; result: string; date: string }[]>([])
+  const [tcoStats, setTcoStats] = useState<Record<string, TCOPlayerStats> | null>(null)
 
   useEffect(() => {
-    (async () => {
-      await engine.init()
-      setEngineReady(true)
-      setIsFallback(engine.isFallback())
-    })()
-    return () => engine.quit()
-  }, [engine])
+    fetchAllTCOPlayerStats().then(setTcoStats)
+  }, [])
+
+  const tcoPlayers = useMemo(() => buildTCOPlayerList(tcoStats || undefined), [tcoStats])
+  const botOptions = useMemo(() => [...tcoPlayers, { name: "Stockfish", rating: 2800, isEngine: true }], [tcoPlayers])
 
   useEffect(() => {
-    if (!gameStarted) return
-    const iv = setInterval(() => setEvaluation(engine.evaluatePosition(gameRef.current.fen())), 1000)
-    return () => clearInterval(iv)
-  }, [gameStarted, engine])
+    const stored = localStorage.getItem("arena-game-history")
+    if (stored) {
+      try { setGameHistory(JSON.parse(stored)) } catch { /* */ }
+    }
+  }, [])
 
   useEffect(() => {
-    if (!gameStarted || gameOver) return
-    const timer = setTimeout(() => {
-      if (isBotTurn()) doBotMove()
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [gameStarted, gameOver]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Timer — decreases whoever's turn it is every second
-  useEffect(() => {
-    if (!gameStarted || gameOver || timeMode === "none") return
-    timerRef.current = setInterval(() => {
-      const g = gameRef.current
-      if (g.turn() === "w") {
-        setPlayerTime((t) => Math.max(0, t - 1))
-      } else {
-        setBotTime((t) => Math.max(0, t - 1))
+    if (ctx.gameOver) {
+      const entry = {
+        botName: ctx.bot.name,
+        result: ctx.gameResult?.winner === ctx.playerColor ? "win" : ctx.gameResult?.winner === "draw" ? "draw" : "loss",
+        date: new Date().toLocaleDateString(),
       }
-    }, 1000)
-    return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [gameStarted, gameOver, timeMode, playerColor])
-
-  useEffect(() => {
-    if (!gameStarted || gameOver || timeMode === "none") return
-    if (playerTime <= 0 && gameRef.current.turn() === (playerColor === "white" ? "w" : "b")) {
-      setGameOver(true)
-      setGameResult("Kamu kehabisan waktu! Bot menang.")
-      setCommentary((p) => [...p, "Time's up! Kamu kehabisan waktu!"])
+      setGameHistory((prev) => {
+        const updated = [...prev, entry]
+        localStorage.setItem("arena-game-history", JSON.stringify(updated))
+        return updated
+      })
     }
-    if (botTime <= 0 && gameRef.current.turn() === (playerColor === "white" ? "b" : "w")) {
-      setGameOver(true)
-      setGameResult("Kamu menang! Bot kehabisan waktu.")
-      setCommentary((p) => [...p, "Bot kehabisan waktu! Kamu menang!"])
-    }
-  }, [playerTime, botTime, gameStarted, gameOver, timeMode, playerColor])
+  }, [ctx.gameOver])
 
-  function getTimeInSeconds(mode: TimeMode, custom: number): number {
-    if (mode === "none") return 0
-    if (mode === "custom") return custom * 60
-    const p = TIME_PRESETS.find((t) => t.mode === mode)
-    return (p?.minutes || 0) * 60
-  }
+  const personality = BOT_PERSONALITIES[ctx.bot.name]
+  const StyleIcon = personality ? STYLE_ICONS[personality.style] || Brain : Brain
+  const styleColor = personality ? STYLE_COLORS[personality.style] || "text-cyan-400" : "text-cyan-400"
 
-  const isBotTurn = useCallback(() => {
-    const c = new Chess(gameRef.current.fen())
-    return playerColor === "white" ? c.turn() === "b" : c.turn() === "w"
-  }, [playerColor])
+  const filteredBots = useMemo(() => {
+    if (!searchQuery) return botOptions
+    const q = searchQuery.toLowerCase()
+    return botOptions.filter((b) => b.name.toLowerCase().includes(q))
+  }, [searchQuery, botOptions])
 
-  const doBotMove = useCallback(() => {
-    if (thinkingRef.current || gameOver || botMovePendingRef.current) return
-    if (!isBotTurn()) return
-    botMovePendingRef.current = true
-    thinkingRef.current = true
-    setBotThinking(true)
+  const canInteract = ctx.gameStarted && !ctx.gameOver && !ctx.botThinking
 
-    const depth = getBotDepth(activeElo, timeMode)
-    const maxNodes = getMaxNodes(timeMode, customMinutes)
-    const delay = getBotDelayMs(timeMode, customMinutes)
+  const onMove = useCallback((orig: Key, dest: Key) => {
+    controller.applyPlayerMove(orig, dest)
+  }, [controller])
 
-    setTimeout(() => {
-      const result = engine.getBestMove(gameRef.current.fen(), depth, movesRef.current, maxNodes)
-      if (!result.bestmove) { thinkingRef.current = false; botMovePendingRef.current = false; setBotThinking(false); return }
-
-      const g = new Chess(gameRef.current.fen())
-      try {
-        const fr = result.from || result.bestmove.substring(0, 2)
-        const t = result.to || result.bestmove.substring(2, 4)
-        const promo = result.bestmove.length > 4 ? result.bestmove[4] as any : undefined
-        g.move({ from: fr as any, to: t as any, promotion: promo }, { strict: true })
-        const h = g.history()
-        const last = h[h.length - 1]
-        const from = fr
-        const to = t
-        gameRef.current = g
-        setLastMove({ from, to })
-        setGame(g)
-        setFen(g.fen())
-        setMoves(h)
-        const c = COACH[Math.floor(Math.random() * COACH.length)]
-        setCoachText(c)
-        setCommentary((prev) => [...prev.slice(-29), `Bot (${bot.name}): ${last}`])
-        if (g.isGameOver()) {
-          setGameOver(true)
-          if (g.isCheckmate()) {
-            const winner = g.turn() === "w" ? "Hitam" : "Putih"
-            const loser = g.turn() === "w" ? "Putih" : "Hitam"
-            setGameResult(`${winner} menang! ${loser} kalah.`)
-            setCommentary((prev) => [...prev, `${winner} menang! Checkmate.`])
-          } else if (g.isDraw()) {
-            setGameResult("Hasil imbang (Draw)")
-            setCommentary((prev) => [...prev, "Game berakhir draw."])
-          } else {
-            setGameResult("Game Over")
-          }
-        }
-      } catch { /* ignore */ }
-      thinkingRef.current = false
-      botMovePendingRef.current = false
-      setBotThinking(false)
-    }, delay)
-  }, [engine, gameOver, playerColor, isBotTurn, activeElo, timeMode, customMinutes, bot.name])
-
-  function applyPlayerMove(from: string, to: string, promo?: string): boolean {
-    if (!gameStarted || gameOver || isBotTurn() || botThinking) return false
-    const g = new Chess(gameRef.current.fen())
+  const dests = useMemo(() => {
+    if (!canInteract) return undefined
     try {
-      const move = g.move({ from: from as Square, to: to as Square, promotion: promo || "q" })
-      if (!move) return false
-      setLegalSquares([])
-      setSelectedSquare(null)
-      setLastMove({ from, to })
-      gameRef.current = g
-      setGame(g)
-      setFen(g.fen())
-      setMoves(g.history())
-      setCommentary((prev) => [...prev.slice(-29), `Kamu (${playerColor === "white" ? "Putih" : "Hitam"}): ${move.san}`])
-      if (g.isGameOver()) {
-        setGameOver(true)
-        if (g.isCheckmate()) {
-          const winner = g.turn() === "w" ? "Hitam" : "Putih"
-          const loser = g.turn() === "w" ? "Putih" : "Hitam"
-          setGameResult(`${winner} menang! ${loser} kalah.`)
-          setCommentary((prev) => [...prev, `${winner} menang! Checkmate.`])
-        } else if (g.isDraw()) {
-          setGameResult("Hasil imbang (Draw)")
-          setCommentary((prev) => [...prev, "Game berakhir draw."])
-        } else {
-          setGameResult("Game Over")
-        }
-        return true
+      const g = new Chess(ctx.fen)
+      const moves = g.moves({ verbose: true })
+      const d = new Map<Key, Key[]>()
+      for (const m of moves) {
+        const existing = d.get(m.from as Key) || []
+        existing.push(m.to as Key)
+        d.set(m.from as Key, existing)
       }
-      doBotMove()
-      return true
-    } catch { return false }
+      return d
+    } catch { return undefined }
+  }, [ctx.fen, canInteract])
+
+  const playerCgColor = ctx.gameStarted ? (ctx.playerColor === "white" ? "white" : "black") : undefined
+  const fenTurn = ctx.fen.split(" ")[1]
+  const turnColor: "white" | "black" = fenTurn === "w" ? "white" : "black"
+
+  const boardConfig = {
+    fen: ctx.fen,
+    orientation: (ctx.playerColor === "black" ? "black" : "white") as "white" | "black",
+    turnColor,
+    coordinates: true,
+    highlight: { lastMove: true, check: true },
+    lastMove: ctx.lastMove ? [ctx.lastMove.from as Key, ctx.lastMove.to as Key] : undefined,
+    selected: ctx.selectedSquare as Key | undefined,
+    movable: {
+      color: canInteract ? playerCgColor : undefined,
+      dests,
+      showDests: true,
+      events: { after: onMove },
+    } as any,
+    draggable: { enabled: canInteract },
+    animation: { enabled: true, duration: 200 },
+  } as any
+
+  function selectBot(bot: BotInfo) {
+    ctx.setBot(bot)
+    setShowBotList(false)
+    setSearchQuery("")
   }
 
-  function onSquareClick({ square }: { square: string }) {
-    if (!gameStarted || gameOver || isBotTurn() || botThinking) return
-    const g = new Chess(gameRef.current.fen())
-    const piece = g.get(square as Square)
-
-    if (selectedSquare) {
-      if (applyPlayerMove(selectedSquare, square)) return
-      if (piece && piece.color === (playerColor === "white" ? "w" : "b")) {
-        setSelectedSquare(square)
-        setLegalSquares(g.moves({ square: square as Square, verbose: true }).map((m) => m.to))
-        return
-      }
-      setSelectedSquare(null)
-      setLegalSquares([])
-      return
-    }
-
-    if (piece && piece.color === (playerColor === "white" ? "w" : "b")) {
-      setSelectedSquare(square)
-      setLegalSquares(g.moves({ square: square as Square, verbose: true }).map((m) => m.to))
-    }
-  }
-
-  function onPieceDrop(args: { sourceSquare?: string | null; targetSquare?: string | null }): boolean {
-    if (!args.sourceSquare || !args.targetSquare) return false
-    return applyPlayerMove(args.sourceSquare, args.targetSquare)
-  }
-
-  function startGame(color: "white" | "black") {
-    if (!engineReady) return
-    const fresh = new Chess()
-    const secs = getTimeInSeconds(timeMode, customMinutes)
-    gameRef.current = fresh
-    setGame(fresh); setFen(fresh.fen()); setMoves([])
-    setEvaluation(0); setCoachText(""); setCommentary([]); setLastMove(null); setLegalSquares([]); setSelectedSquare(null)
-    setPlayerColor(color); setGameStarted(true); setGameOver(false); setBotThinking(false); setGameResult(null)
-    setPlayerTime(secs); setBotTime(secs)
-  }
-
-  function resetGame() {
-    setGameStarted(false); setGameOver(false); setLastMove(null); setLegalSquares([]); setSelectedSquare(null); setBotThinking(false)
-    const fresh = new Chess()
-    gameRef.current = fresh
-    setGame(fresh); setFen(fresh.fen()); setMoves([]); setEvaluation(0); setCoachText(""); setCommentary([])
-    setPlayerTime(0); setBotTime(0)
-  }
-
-  function formatTime(seconds: number): string {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${m}:${s.toString().padStart(2, "0")}`
-  }
-
-  const sqStyles: Record<string, React.CSSProperties> = {}
-  if (lastMove) {
-    sqStyles[lastMove.from] = { backgroundColor: "rgba(255, 255, 0, 0.25)", borderRadius: "4px" }
-    sqStyles[lastMove.to] = { backgroundColor: "rgba(255, 255, 0, 0.25)", borderRadius: "4px" }
-  }
-  if (selectedSquare) {
-    sqStyles[selectedSquare] = { backgroundColor: "rgba(0, 210, 255, 0.35)", borderRadius: "4px" }
-  }
-  for (const sq of legalSquares) {
-    sqStyles[sq] = {
-      background: "radial-gradient(circle, rgba(0,210,255,0.4) 25%, transparent 25%)",
-      borderRadius: "50%",
-    }
-  }
-
-  const boardOrientation: "white" | "black" = playerColor === "black" ? "black" : "white"
-  const boardOptions = {
-    id: "play-bot-board",
-    position: fen,
-    boardOrientation,
-    onSquareClick,
-    onPieceDrop,
-    boardStyle: { borderRadius: "12px", boxShadow: "0 0 30px rgba(0, 210, 255, 0.1)" },
-    darkSquareStyle: { backgroundColor: "#1e293b" },
-    lightSquareStyle: { backgroundColor: "#334155" },
-    showNotation: true,
-    squareStyles: sqStyles,
-    allowDragging: true,
-  }
-
-  if (!gameStarted) {
+  if (!ctx.gameStarted) {
     return (
-      <div className="mx-auto max-w-lg">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-4xl">
         <div className="text-center">
-          <Bot className="mx-auto h-12 w-12 text-cyan-400" />
-          <h1 className="mt-4 text-2xl font-bold text-white">VS Bot Training</h1>
-          <p className="mt-1 text-sm text-white/50">Pilih lawan dari anggota TCO atau Lozza Engine</p>
-          {engineReady && (
-            <span className="mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-medium bg-cyan-400/10 text-cyan-400">
-              <Zap className="h-3 w-3" /> Engine Siap
-            </span>
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 ring-1 ring-cyan-400/20">
+            <Sword className="h-8 w-8 text-cyan-400" />
+          </div>
+          <h1 className="mt-4 text-3xl font-bold text-white">VS Bot Training</h1>
+          <p className="mt-1 text-sm text-white/50">Pilih lawan dari Bot_Anggota Divisi TCO Chess atau engine catur</p>
+          {ctx.engineReady && (
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="mt-3 flex items-center justify-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-medium bg-green-400/10 text-green-400 border border-green-400/20">
+                <Cpu className="h-3 w-3" /> Stockfish 18 Siap
+              </span>
+            </motion.div>
           )}
         </div>
 
-        <div className="mt-8 space-y-5 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          {/* Bot Selector */}
-          <div>
-            <label className="text-sm font-medium text-white/70">Pilih Bot</label>
-            <select value={bot.name}
-              onChange={(e) => {
-                const f = BOT_OPTIONS.find((b) => b.name === e.target.value)
-                if (f) setBot(f)
-              }}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50">
-              <optgroup label="— TCO Players —" className="bg-slate-950">
-                {TCO_PLAYERS.map((p) => (
-                  <option key={p.name} value={p.name} className="bg-slate-950">{p.name} (Elo {p.rating})</option>
-                ))}
-              </optgroup>
-              <optgroup label="— Lozza Engine —" className="bg-slate-950">
-                <option value="Lozza" className="bg-slate-950">Lozza Engine</option>
-              </optgroup>
-            </select>
-          </div>
-
-          {/* Elo slider — only for Lozza engine */}
-          {bot.isEngine && (
-            <div>
-              <label className="text-sm font-medium text-white/70">Level (Elo: {botElo})</label>
-              <input type="range" min={800} max={2800} step={100} value={botElo}
-                onChange={(e) => setBotElo(Number(e.target.value))}
-                className="mt-2 w-full accent-cyan-400" />
-              <div className="mt-1 flex justify-between text-xs text-white/30"><span>800</span><span>2800</span></div>
-            </div>
-          )}
-          {!bot.isEngine && (
-            <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.03] p-3">
-              <div className="flex items-center gap-2 text-xs text-cyan-400">
-                <Users className="h-3.5 w-3.5" />
-                TCO Player — Elo {bot.rating}
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="space-y-5">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div className="flex items-center justify-between mb-4">
+                <label className="text-sm font-semibold text-white/70">Pilih Bot</label>
+                {personality && (
+                  <span className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${styleColor}`}>
+                    <StyleIcon className="h-3 w-3" />
+                    {personality.style.charAt(0).toUpperCase() + personality.style.slice(1)}
+                  </span>
+                )}
               </div>
-            </div>
-          )}
 
-          {/* Time Mode */}
-          <div>
-            <label className="text-sm font-medium text-white/70">Time Mode</label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {TIME_PRESETS.map((p) => (
-                <button key={p.mode} onClick={() => setTimeMode(p.mode)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                    timeMode === p.mode ? "bg-cyan-400/10 text-cyan-400 border border-cyan-400/30" : "border border-white/10 text-white/50 hover:text-white/70"
-                  }`}>
-                  {p.label}
+              <div className="relative">
+                <button onClick={() => setShowBotList(!showBotList)}
+                  className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left transition-all hover:border-cyan-400/30">
+                  {personality?.avatarUrl ? (
+                    <img src={personality.avatarUrl} alt={personality.displayName} className="h-10 w-10 rounded-full object-cover ring-1 ring-cyan-400/20" />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 text-sm font-bold text-cyan-400 ring-1 ring-cyan-400/20">
+                      {ctx.bot.name.charAt(0)}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-white truncate">{personality?.displayName || ctx.bot.name}</span>
+                      {ctx.bot.isEngine && (
+                        <span className="rounded bg-cyan-400/10 px-1.5 py-0.5 text-[9px] font-medium text-cyan-400">ENGINE</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-yellow-400/80">Elo {ctx.activeElo}</span>
+                      {personality?.description && (
+                        <span className="text-[10px] text-white/30 truncate">{personality.description}</span>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-white/30 shrink-0" />
                 </button>
-              ))}
+
+                <AnimatePresence>
+                  {showBotList && (
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                      className="absolute left-0 right-0 top-full z-20 mt-2 max-h-[320px] overflow-y-auto rounded-xl border border-white/10 bg-slate-900 shadow-2xl shadow-black/50">
+                      <div className="sticky top-0 border-b border-white/10 bg-slate-900 p-2">
+                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Cari bot..."
+                          className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white placeholder-white/20 outline-none focus:border-cyan-400/50" autoFocus />
+                      </div>
+                      <div className="py-1">
+                        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-cyan-400/60">TCO Players - Bot Anggota Divisi</div>
+                        {filteredBots.filter((b) => !b.isEngine).map((bot) => {
+                          const p = BOT_PERSONALITIES[bot.name]
+                          const SI = p ? STYLE_ICONS[p.style] || Brain : Brain
+                          const SC = p ? STYLE_COLORS[p.style] || "text-cyan-400" : "text-cyan-400"
+                          return (
+                            <button key={bot.name} onClick={() => selectBot(bot)}
+                              className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-all hover:bg-white/[0.03] ${ctx.bot.name === bot.name ? "bg-cyan-400/5" : ""}`}>
+                              {p?.avatarUrl ? (
+                                <img src={p.avatarUrl} alt={p.displayName} className="h-8 w-8 rounded-full object-cover ring-1 ring-cyan-400/10" />
+                              ) : (
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/10 to-blue-600/10 text-xs font-bold text-cyan-400 ring-1 ring-cyan-400/10">{bot.name.charAt(0)}</div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm font-medium text-white/80">{p?.displayName || bot.name}</span>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-xs text-yellow-400/70">Elo {bot.rating}</span>
+                                  {p && <span className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] ${SC}`}><SI className="h-2.5 w-2.5" />{p.style}</span>}
+                                </div>
+                              </div>
+                            </button>
+                          )
+                        })}
+                        <div className="border-t border-white/5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-cyan-400/60 mt-1">Engines</div>
+                        {filteredBots.filter((b) => b.isEngine).map((bot) => (
+                          <button key={bot.name} onClick={() => selectBot(bot)}
+                            className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-all hover:bg-white/[0.03] ${ctx.bot.name === bot.name ? "bg-cyan-400/5" : ""}`}>
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-purple-500/10 to-pink-600/10 text-xs font-bold text-purple-400 ring-1 ring-purple-400/10"><Cpu className="h-4 w-4" /></div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-medium text-white/80">{bot.name}</span>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-xs text-yellow-400/70">Elo {bot.rating}</span>
+                                <span className="text-[9px] text-purple-400/60">Engine</span>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {personality && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4 space-y-3">
+                  <div className="rounded-xl border border-cyan-400/10 bg-cyan-400/[0.02] p-3">
+                    <p className="text-xs leading-relaxed text-white/60">{personality.description}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {personality.strengths.map((s) => (
+                        <span key={s} className="rounded bg-green-400/10 px-2 py-0.5 text-[9px] text-green-400/80">+ {s}</span>
+                      ))}
+                      {personality.weaknesses.map((w) => (
+                        <span key={w} className="rounded bg-red-400/10 px-2 py-0.5 text-[9px] text-red-400/80">- {w}</span>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {!ctx.bot.isEngine && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/[0.03] p-2.5">
+                  <Users className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                  <span className="text-[11px] text-cyan-400/80">
+                    TCO Player &mdash; {personality ? `Gaya ${personality.style}` : `Elo ${ctx.bot.rating}`}
+                  </span>
+                </div>
+              )}
             </div>
-            {timeMode === "custom" && (
-              <div className="mt-3 flex items-center gap-3">
-                <span className="text-xs text-white/40">Menit per pemain:</span>
-                <input type="number" min={1} max={60} value={customMinutes}
-                  onChange={(e) => setCustomMinutes(Math.max(1, Math.min(60, Number(e.target.value))))}
-                  className="w-20 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-sm text-white text-center outline-none focus:border-cyan-400/50" />
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <label className="text-sm font-semibold text-white/70">Time Control</label>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {TIME_PRESETS.map((p) => (
+                  <button key={p.mode} onClick={() => ctx.setTimeMode(p.mode)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${ctx.timeMode === p.mode ? "bg-cyan-400/10 text-cyan-400 border border-cyan-400/30" : "border border-white/10 text-white/50 hover:text-white/70"}`}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              {ctx.timeMode === "custom" && (
+                <div className="mt-3 flex items-center gap-3">
+                  <span className="text-xs text-white/40">Menit per pemain:</span>
+                  <input type="number" min={1} max={60} value={ctx.customMinutes}
+                    onChange={(e) => ctx.setCustomMinutes(Math.max(1, Math.min(60, Number(e.target.value))))}
+                    className="w-20 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-sm text-white text-center outline-none focus:border-cyan-400/50" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => controller.startGame("white")}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] ${!ctx.engineReady ? "opacity-50 cursor-not-allowed" : ""}`}>
+                <Play className="h-4 w-4" /> Main Putih
+              </button>
+              <button onClick={() => controller.startGame("black")}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-white/80 transition-all hover:border-cyan-400/30 hover:text-cyan-400 ${!ctx.engineReady ? "opacity-50 cursor-not-allowed" : ""}`}>
+                <Play className="h-4 w-4" /> Main Hitam
+              </button>
+            </div>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="space-y-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
+              {personality ? (
+                <>
+                  {personality.avatarUrl ? (
+                    <img src={personality.avatarUrl} alt={personality.displayName} className="mx-auto h-24 w-24 rounded-full object-cover ring-2 ring-cyan-400/20" />
+                  ) : (
+                    <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 ring-2 ring-cyan-400/20">
+                      <span className="text-4xl font-bold text-cyan-400">{personality.name.charAt(0)}</span>
+                    </div>
+                  )}
+                  <h2 className="mt-4 text-xl font-bold text-white">{personality.displayName}</h2>
+                  <div className="mt-2 flex items-center justify-center gap-3">
+                    <span className="text-2xl font-bold text-yellow-400">{personality.elo}</span>
+                    <span className="text-xs text-white/30">Elo</span>
+                    <span className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${styleColor}`}>
+                      <StyleIcon className="h-3 w-3" />{personality.style.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="mt-4 space-y-2 text-left">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-white/30">Opening Preference</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {personality.openingPreference.map((op) => (
+                        <span key={op} className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] font-medium text-white/60">{op}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-4 border-t border-white/5 pt-4">
+                    <p className="text-xs text-white/40 italic">&ldquo;{personality.description}&rdquo;</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-purple-500/20 to-pink-600/20 ring-2 ring-purple-400/20">
+                    <Cpu className="h-10 w-10 text-purple-400" />
+                  </div>
+                  <h2 className="mt-4 text-xl font-bold text-white">{ctx.bot.name}</h2>
+                  <div className="mt-2 flex items-center justify-center gap-3">
+                    <span className="text-2xl font-bold text-yellow-400">{ctx.activeElo}</span>
+                    <span className="text-xs text-white/30">Max Elo</span>
+                  </div>
+                  <p className="mt-3 text-xs text-white/40">Stockfish 18 Lite &mdash; strongest chess engine</p>
+                </>
+              )}
+            </div>
+
+            {gameHistory.length > 0 && (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <h3 className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">
+                  <Gamepad2 className="h-3 w-3" /> Recent Games
+                </h3>
+                <div className="space-y-1 max-h-[160px] overflow-y-auto">
+                  {gameHistory.slice(-5).reverse().map((g, i) => (
+                    <div key={i} className="flex items-center justify-between text-[11px]">
+                      <span className="text-white/50 truncate">vs {g.botName}</span>
+                      <span className={`font-medium ${g.result === "win" ? "text-green-400" : g.result === "loss" ? "text-red-400" : "text-yellow-400"}`}>
+                        {g.result === "win" ? "W" : g.result === "loss" ? "L" : "D"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
-
-          <div className="flex gap-3">
-            <button onClick={() => startGame("white")}
-              className={`flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] ${!engineReady ? "opacity-50 cursor-not-allowed" : ""}`}>
-              <Play className="h-4 w-4" /> Main sebagai Putih
-            </button>
-            <button onClick={() => startGame("black")}
-              className={`flex-1 flex items-center justify-center gap-2 rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-white/80 transition-all hover:border-cyan-400/30 hover:text-cyan-400 ${!engineReady ? "opacity-50 cursor-not-allowed" : ""}`}>
-              <Play className="h-4 w-4" /> Main sebagai Hitam
-            </button>
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     )
   }
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-white/70">Kamu ({playerColor === "white" ? "Putih" : "Hitam"})</span>
-          <span className="text-white/30">vs</span>
-          <span className="flex items-center gap-1 text-sm font-medium text-cyan-400">
-            <Bot className="h-3.5 w-3.5" /> {bot.name}
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-white/70">Kamu ({ctx.playerColor === "white" ? "Putih" : "Hitam"})</span>
+            <span className="text-white/20">vs</span>
+            <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5">
+              {personality?.avatarUrl ? (
+                <img src={personality.avatarUrl} alt={personality.displayName} className="h-6 w-6 rounded-full object-cover" />
+              ) : (
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 text-[10px] font-bold text-cyan-400">{ctx.bot.name.charAt(0)}</div>
+              )}
+              <span className="text-sm font-semibold text-cyan-400">{personality?.displayName || ctx.bot.name}</span>
+              <span className="text-[10px] text-white/30">Elo {ctx.activeElo}</span>
+              {personality && (
+                <span className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-medium ${styleColor}`}>
+                  <StyleIcon className="h-2.5 w-2.5" />{personality.style}
+                </span>
+              )}
+            </div>
+          </div>
+          <span className="flex items-center gap-1 rounded-full bg-cyan-400/10 px-2 py-0.5 text-[9px] font-medium text-cyan-400">
+            <Cpu className="h-2.5 w-2.5" />SF18
           </span>
-          <span className="text-[10px] text-white/30">Elo {activeElo}</span>
-          {isFallback ? (
-            <span className="flex items-center gap-1 rounded-full bg-yellow-400/10 px-2 py-0.5 text-[10px] text-yellow-400"><Zap className="h-3 w-3" /> Light Mode</span>
-          ) : (
-            <span className="flex items-center gap-1 rounded-full bg-cyan-400/10 px-2 py-0.5 text-[10px] text-cyan-400"><Cpu className="h-3 w-3" /> Lozza</span>
-          )}
         </div>
-        <button onClick={resetGame}
-          className="flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-all hover:border-cyan-400/30 hover:text-cyan-400">
+        <button onClick={controller.resetGame}
+          className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-all hover:border-red-400/30 hover:text-red-400">
           <RotateCcw className="h-3.5 w-3.5" /> Reset
         </button>
       </div>
 
-      {/* Timer Display */}
-      {timeMode !== "none" && (
+      {ctx.timeMode !== "none" && (
         <div className="mb-3 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-5 py-2.5">
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-3 text-sm">
             <Clock className="h-4 w-4 text-cyan-400" />
-            <span className={`font-semibold ${playerTime <= 30 ? "text-red-400" : "text-white"}`}>
-              {formatTime(playerTime)}
-            </span>
-            <span className="text-white/30">|</span>
-            <span className={`font-semibold ${botTime <= 30 ? "text-red-400" : "text-cyan-400"}`}>
-              {formatTime(botTime)}
-            </span>
+            <span className="text-xs text-white/30">Kamu</span>
+            <span className={`font-semibold tabular-nums ${ctx.playerTime <= 30 ? "text-red-400" : "text-white"}`}>{ctx.formatTime(ctx.playerTime)}</span>
+            <span className="text-white/20">|</span>
+            <span className="text-xs text-white/30">Bot</span>
+            <span className={`font-semibold tabular-nums ${ctx.botTime <= 30 ? "text-red-400" : "text-cyan-400"}`}>{ctx.formatTime(ctx.botTime)}</span>
           </div>
-          <span className="text-[10px] text-white/30">
-            {timeMode === "custom" ? `${customMinutes}m` : TIME_PRESETS.find((t) => t.mode === timeMode)?.label}
-          </span>
+          <span className="text-[10px] text-white/30">{ctx.timeMode === "custom" ? `${ctx.customMinutes}m` : TIME_PRESETS.find((t) => t.mode === ctx.timeMode)?.label}</span>
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div>
-          {/* Board + Evaluation Bar side by side */}
           <div className="flex gap-4 items-start">
-            <ChessboardProvider options={boardOptions}>
-              <div className="max-w-[560px] flex-1"><Chessboard /></div>
-            </ChessboardProvider>
-            <div className="shrink-0">
-              <EvaluationBar evaluation={evaluation} mate={null} playerColor={playerColor} />
-              <div className="mt-2 text-center">
-                <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
-                  {(() => {
-                    const cp = evaluation * 100
-                    const pct = 50 + 50 * (2 / (1 + Math.exp(-0.003682 * cp)) - 1)
-                    return `${Math.round(Math.max(0, Math.min(100, pct)))}%`
-                  })()} win
-                </span>
+            <div className="max-w-[560px] flex-1">
+              <div className="board-custom-wrap rounded-xl overflow-hidden shadow-lg shadow-cyan-500/10">
+                <Chessground config={boardConfig} contained />
               </div>
+            </div>
+            <div className="shrink-0">
+              <EvaluationBar evaluation={ctx.evaluation} mate={null} playerColor={ctx.playerColor} />
             </div>
           </div>
 
-          {/* Move list */}
           <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <div className="flex flex-wrap gap-1">
-              {moves.length === 0 ? (
+              {ctx.moves.length === 0 ? (
                 <span className="text-xs text-white/20">Klik bidak untuk mulai...</span>
               ) : (
-                moves.map((m, i) => (
+                ctx.moves.map((m, i) => (
                   <span key={i} className={`rounded px-1.5 py-0.5 text-[11px] ${i % 2 === 0 ? "bg-white/5 text-white/60" : "bg-cyan-400/5 text-cyan-400/80"}`}>
                     {i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ` : ""}{m}
                   </span>
@@ -576,39 +454,40 @@ export default function PlayBotPage() {
             </div>
           </div>
 
-          {/* Game Over + Virtual Coach below board */}
           <div className="mt-3 grid gap-3 md:grid-cols-2">
-            {gameOver && (
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center">
-                <p className="text-sm font-bold text-white">{gameResult}</p>
+            {ctx.gameOver && (
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center">
+                <p className="text-sm font-bold text-white">
+                  {ctx.gameResult?.winner === "draw" ? "Draw" : ctx.gameResult?.winner === "white" ? "Putih Menang!" : ctx.gameResult?.winner === "black" ? "Hitam Menang!" : "Game Over"}
+                </p>
+                <p className="mt-1 text-xs text-white/40">{ctx.gameResult?.reason}</p>
                 <div className="mt-3 flex flex-col gap-2">
                   <button onClick={() => {
                     const g = new Chess()
-                    moves.forEach((m) => { try { g.move(m) } catch { /* */ } })
+                    ctx.moves.forEach((m) => { try { g.move(m) } catch { /* */ } })
                     if (typeof window !== "undefined") localStorage.setItem("analysisPgn", g.pgn())
                     window.location.href = "/arena-training/analysis"
-                  }}
-                    className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02]">
-                    Analisis Game
+                  }} className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02]">
+                    <Brain className="h-3.5 w-3.5" /> Analisis Game
                   </button>
-                  <button onClick={resetGame}
+                  <button onClick={controller.resetGame}
                     className="flex items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-white/60 transition-all hover:border-cyan-400/30 hover:text-cyan-400">
                     <RotateCcw className="h-3.5 w-3.5" /> Main Lagi
                   </button>
                 </div>
-              </div>
+              </motion.div>
             )}
             <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.03] p-4">
               <div className="flex items-start gap-2">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cyan-400/10">
-                  {botThinking ? <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" /> : <Bot className="h-3.5 w-3.5 text-cyan-400" />}
+                  {ctx.botThinking ? <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" /> : <Bot className="h-3.5 w-3.5 text-cyan-400" />}
                 </div>
                 <div className="flex-1">
                   <p className="text-[10px] font-medium text-cyan-400">Virtual Coach</p>
-                  {botThinking ? (
-                    <p className="mt-0.5 text-xs italic text-cyan-400/60">Engine Thinking...</p>
-                  ) : coachText ? (
-                    <p className="mt-0.5 text-xs leading-relaxed text-white/60">{coachText}</p>
+                  {ctx.botThinking ? (
+                    <p className="mt-0.5 text-xs italic text-cyan-400/60">{personality?.name || "Bot"} berpikir...</p>
+                  ) : ctx.coachText ? (
+                    <p className="mt-0.5 text-xs leading-relaxed text-white/60">{ctx.coachText}</p>
                   ) : (
                     <p className="mt-0.5 text-xs text-white/30">Coach akan memberi komentar setelah langkah dimainkan.</p>
                   )}
@@ -619,14 +498,47 @@ export default function PlayBotPage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="flex-1 min-h-0 overflow-y-auto rounded-xl border border-white/10 bg-white/[0.03] p-3">
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40">Commentary</h3>
-            <div className="mt-2 space-y-1">
-              {commentary.map((c, i) => (<p key={i} className="text-[11px] leading-relaxed text-white/40">{c}</p>))}
+          <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.03] p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <MessageCircle className="h-3.5 w-3.5 text-cyan-400" />
+              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80">{(personality?.displayName || ctx.bot.name)} Commentator</h3>
+            </div>
+            <div className="max-h-[200px] min-h-[80px] overflow-y-auto space-y-1">
+              {ctx.commentary.length === 0 ? (
+                <p className="text-[11px] text-white/20 italic">Belum ada komentar...</p>
+              ) : (
+                ctx.commentary.slice(-15).map((c, i) => (
+                  <motion.p key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="text-[11px] leading-relaxed text-white/40">{c}</motion.p>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40">Game Info</h3>
+            <div className="mt-2 space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-white/40">Moves</span>
+                <span className="text-white/60">{ctx.moves.length}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-white/40">Engine</span>
+                <span className="text-cyan-400">Stockfish 18</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-white/40">Bot Elo</span>
+                <span className="text-yellow-400/80">{ctx.activeElo}</span>
+              </div>
+              {personality && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/40">Style</span>
+                  <span className={`font-medium ${styleColor}`}>{personality.style}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
