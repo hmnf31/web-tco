@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { Analytics } from "@vercel/analytics/react"
 import Navbar from "@/components/Navbar"
 import AnnouncementBanner from "@/components/AnnouncementBanner"
 import SiteTour from "@/components/SiteTour"
@@ -36,6 +37,7 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <Footer />
         <MusicPlayer />
+        <Analytics />
       </body>
     </html>
   )
