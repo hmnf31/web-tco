@@ -1,4 +1,4 @@
-import { StockfishEngine, type StockfishEval, type StockfishMultiPvEval, type EvalCallback } from "./stockfish-engine"
+import { StockfishEngine, type StockfishEval, type StockfishMultiPvEval } from "./stockfish-engine"
 import { TCOEngine, type TCOEval } from "./tco-engine"
 
 export class EngineManager {
@@ -28,15 +28,10 @@ export class EngineManager {
     this._ready = false
   }
 
-  async getBestMove(
-    fen: string,
-    depth: number = 12,
-    moveHistory: string[] = [],
-    maxNodes: number = 0,
-  ): Promise<StockfishEval> {
+  async getBestMove(fen: string): Promise<StockfishEval> {
     const tco = this.tcoEngine
     if (tco) {
-      const result: TCOEval = tco.getBestMove(fen, depth)
+      const result: TCOEval = tco.getBestMove(fen, 3)
       return {
         bestmove: result.displayBestmove || result.bestmove,
         evaluation: result.evaluation,
@@ -45,7 +40,7 @@ export class EngineManager {
         to: result.to,
       }
     }
-    return this.stockfish.getBestMove(fen, depth, moveHistory, maxNodes)
+    return this.stockfish.getBestMove(fen)
   }
 
   async evaluateAllMoves(fen: string, depth = 14, multiPv = 10): Promise<StockfishMultiPvEval> {
@@ -61,17 +56,6 @@ export class EngineManager {
       moves: moves.map((m: any) => ({ move: m.from + m.to + (m.promotion || ""), san: m.san, cp: 0, winrate: 0.5, mate: null })),
       bestmove: moves[0]?.from + moves[0]?.to + (moves[0]?.promotion || "") || "",
     }
-  }
-
-  async streamEvaluation(fen: string, callback: EvalCallback, depth = 18): Promise<void> {
-    if (this._ready && !this.isFallback()) {
-      return this.stockfish.streamEvaluation(fen, callback, depth)
-    }
-    callback({ fen, evaluation: 0, mate: null, depth: 0 })
-  }
-
-  stopStreaming(): void {
-    this.stockfish.stopStreaming()
   }
 
   async evaluatePositionAsync(fen: string): Promise<number> {

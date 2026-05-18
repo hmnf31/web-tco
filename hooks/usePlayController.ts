@@ -17,19 +17,12 @@ const COACH = [
   "Jangan lupa castling untuk mengamankan Raja.",
 ]
 
-function getBotDepth(timeMode: TimeMode): number {
-  if (timeMode === "bullet") return 10
-  if (timeMode === "blitz") return 12
-  if (timeMode === "rapid") return 14
-  return 12
-}
-
 function getBotDelayMs(timeMode: TimeMode, customMinutes: number): number {
-  if (timeMode === "bullet") return 150
-  if (timeMode === "blitz") return 300
-  if (timeMode === "rapid") return 500
-  if (timeMode === "custom") return Math.min(customMinutes * 100, 800)
-  return 400
+  if (timeMode === "bullet") return 50
+  if (timeMode === "blitz") return 100
+  if (timeMode === "rapid") return 200
+  if (timeMode === "custom") return Math.min(customMinutes * 30, 300)
+  return 100
 }
 
 export function usePlayController() {
@@ -53,15 +46,9 @@ export function usePlayController() {
     thinkingRef.current = true
     ctx.setBotThinking(true)
 
-    const depth = getBotDepth(ctx.timeMode)
     const delay = getBotDelayMs(ctx.timeMode, ctx.customMinutes)
 
-    const result = await ctx.engine.getBestMove(
-      gameRef.current.fen(),
-      depth,
-      ctx.moves,
-      0,
-    )
+    const result = await ctx.engine.getBestMove(gameRef.current.fen())
 
     setTimeout(() => {
       if (!result.bestmove) {

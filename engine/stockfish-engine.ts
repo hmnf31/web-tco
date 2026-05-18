@@ -28,42 +28,21 @@ export type EvalCallback = (evalData: { fen: string; evaluation: number; mate: n
 export class StockfishEngine {
   private worker: Worker | null = null
   private ready = false
-  private resolvers: Map<string, (value: any) => void> = new Map()
-  private isAnalyzing = false
   private fallbackMode = false
+  private resolvers = new Map<string, (value: any) => void>()
+  private busy = false
+
   private lastEval = 0
   private lastMate: number | null = null
   private bestmoveValue: StockfishEval | null = null
   private evalValue: number | null = null
   private multiPvResults: MoveEval[] = []
   private multiPvCount = 0
-  private multiPvSeen = 0
-  private evalCallback: EvalCallback | null = null
-  private currentEvalDepth = 0
-  private streamActive = false
-  private commandRunning = false
-  private lockId = 0
-
-  private async runLocked<T>(fn: () => Promise<T>): Promise<T> {
-    const id = ++this.lockId
-    while (this.commandRunning && this.lockId === id) {
-      await this.sleep(10)
-    }
-    if (this.lockId !== id) {
-      throw new Error("Command superseded")
-    }
-    this.commandRunning = true
-    try {
-      return await fn()
-    } finally {
-      this.commandRunning = false
-    }
-  }
 
   async init(): Promise<void> {
     try {
-      const workerUrl = this.getWorkerUrl()
-      this.worker = new Worker(workerUrl)
+      const url = this.getWorkerUrl()
+      this.worker = new Worker(url)
 
       this.worker.onmessage = (e) => {
         const line = typeof e.data === "string" ? e.data : ""
@@ -71,25 +50,35 @@ export class StockfishEngine {
       }
 
       this.worker.onerror = (err) => {
-        console.warn("Stockfish worker error event:", err.message)
+        console.warn("Stockfish error:", err.message)
         this.fallbackMode = true
         this.ready = true
         this.resolve("uciok")
       }
 
       this.send("uci")
-      await this.wait("uciok", 20000)
+      await this.wait("uciok", 15000)
+      if (!this.ready || this.fallbackMode) return
 
-      if (this.ready && !this.fallbackMode) {
-        this.send("ucinewgame")
-        await this.sleep(100)
-        this.send("isready")
-      }
+      await this.configureUciLimits()
+      this.send("isready")
+      await this.wait("readyok", 5000)
     } catch (err) {
-      console.warn("Stockfish init failed, using fallback:", err)
+      console.warn("Stockfish init failed:", err)
       this.fallbackMode = true
       this.ready = true
     }
+  }
+
+  private async configureUciLimits(): Promise<void> {
+    this.send("setoption name Threads value 1")
+    await this.sleep(30)
+    this.send("setoption name Hash value 16")
+    await this.sleep(30)
+    this.send("setoption name Use NNUE value false")
+    await this.sleep(30)
+    this.send("ucinewgame")
+    await this.sleep(50)
   }
 
   private getWorkerUrl(): string {
@@ -104,15 +93,12 @@ export class StockfishEngine {
       this.resolve("uciok")
       return
     }
-
     if (line === "readyok") {
       this.resolve("readyok")
       return
     }
-
     if (line.startsWith("bestmove")) {
-      this.isAnalyzing = false
-      this.streamActive = false
+      this.busy = false
       const parts = line.split(" ")
       const bestmove = parts[1] || ""
       const from = bestmove ? bestmove.substring(0, 2) : undefined
@@ -124,7 +110,6 @@ export class StockfishEngine {
       this.resolve("bestmove")
       return
     }
-
     if (line.startsWith("info")) {
       const parts = line.split(" ")
       let scoreCp: number | null = null
@@ -138,14 +123,11 @@ export class StockfishEngine {
         if (parts[i] === "multipv") multiPv = parseInt(parts[i + 1], 10)
         if (parts[i] === "score" && parts[i + 1] === "cp") scoreCp = parseInt(parts[i + 2], 10) / 100
         if (parts[i] === "score" && parts[i + 1] === "mate") scoreMate = parseInt(parts[i + 2], 10)
-        if (parts[i] === "pv") {
-          pvMove = parts[i + 1] || ""
-        }
+        if (parts[i] === "pv") pvMove = parts[i + 1] || ""
       }
 
       if (scoreCp !== null) this.lastEval = scoreCp
       if (scoreMate !== null) this.lastMate = scoreMate
-      this.currentEvalDepth = depthReached
 
       if (multiPv > 0 && (scoreCp !== null || scoreMate !== null) && pvMove) {
         const idx = multiPv - 1
@@ -157,22 +139,9 @@ export class StockfishEngine {
         }
       }
 
-      if (multiPv > 0 && multiPv === this.multiPvCount && (scoreCp !== null || scoreMate !== null)) {
-        this.multiPvSeen = this.multiPvCount
-      }
-
-      if (this.evalCallback && depthReached > 0 && scoreCp !== null) {
-        this.evalCallback({ fen: "", evaluation: scoreCp, mate: scoreMate, depth: depthReached })
-      }
-
-      if (scoreCp !== null && depthReached > 0 && !this.streamActive) {
+      if (scoreCp !== null && depthReached > 0) {
         this.evalValue = scoreCp
         this.resolve("eval")
-      }
-
-      if (this.streamActive && scoreCp !== null && depthReached > 0) {
-        this.evalValue = scoreCp
-        this.resolve("eval-stream")
       }
     }
   }
@@ -200,17 +169,27 @@ export class StockfishEngine {
   }
 
   private resolve(id: string, value?: any) {
-    const resolveFn = this.resolvers.get(id)
-    if (resolveFn) {
+    const fn = this.resolvers.get(id)
+    if (fn) {
       this.resolvers.delete(id)
-      resolveFn(value !== undefined ? value : true)
+      fn(value !== undefined ? value : true)
     }
   }
 
-  async getBestMove(fen: string, depth = 12, _moveHistory?: string[], _maxNodes?: number): Promise<StockfishEval> {
-    return this.runLocked(async () => {
+  private async exec<T>(fn: () => Promise<T>): Promise<T> {
+    while (this.busy) await this.sleep(20)
+    this.busy = true
+    try {
+      return await fn()
+    } finally {
+      this.busy = false
+    }
+  }
+
+  async getBestMove(fen: string): Promise<StockfishEval> {
+    return this.exec(async () => {
       if (this.fallbackMode || !this.ready || !this.worker) {
-        return this.fallbackEval(fen, depth)
+        return this.fallbackEval(fen)
       }
 
       this.lastEval = 0
@@ -218,44 +197,34 @@ export class StockfishEngine {
       this.bestmoveValue = null
       this.multiPvResults = []
 
-      this.send("ucinewgame")
-      await this.sleep(50)
-      this.send(`position fen ${fen}`)
-      this.send(`go depth ${depth}`)
+      this.send("position fen " + fen)
+      this.send("go movetime 700")
 
-      this.isAnalyzing = true
-      const result = await this.wait("bestmove", 30000)
-
+      const result = await this.wait("bestmove", 5000)
       if (!result || !this.bestmoveValue) {
-        return this.fallbackEval(fen, depth)
+        return this.fallbackEval(fen)
       }
-
       return this.bestmoveValue!
     })
   }
 
-  async evaluateAllMoves(fen: string, depth = 14, multiPv = 10): Promise<StockfishMultiPvEval> {
-    return this.runLocked(async () => {
+  async evaluateAllMoves(fen: string, depth = 12, multiPv = 10): Promise<StockfishMultiPvEval> {
+    return this.exec(async () => {
       if (this.fallbackMode || !this.ready || !this.worker) {
         return this.fallbackMultiPv(fen)
       }
 
       this.multiPvResults = []
       this.multiPvCount = multiPv
-      this.multiPvSeen = 0
       this.lastEval = 0
       this.lastMate = null
 
-      this.send("ucinewgame")
-      await this.sleep(50)
       this.send("setoption name MultiPv value " + multiPv)
       await this.sleep(20)
-      this.send(`position fen ${fen}`)
-      this.send(`go depth ${depth}`)
+      this.send("position fen " + fen)
+      this.send("go movetime 1500")
 
-      this.isAnalyzing = true
-      const result = await this.wait("bestmove", 60000)
-
+      await this.wait("bestmove", 10000)
       this.send("setoption name MultiPv value 1")
 
       const chess = new Chess(fen)
@@ -264,82 +233,35 @@ export class StockfishEngine {
       const moves: MoveEval[] = this.multiPvResults
         .filter((m) => m.move)
         .map((m) => {
-          const legalMove = legalMoves.find((lm) => lm.from + lm.to + (lm.promotion || "") === m.move)
-          return {
-            move: m.move,
-            san: legalMove?.san || m.move,
-            cp: m.cp,
-            winrate: 0.5,
-            mate: m.mate,
-          }
+          const lm = legalMoves.find((l) => l.from + l.to + (l.promotion || "") === m.move)
+          return { move: m.move, san: lm?.san || m.move, cp: m.cp, winrate: 0.5, mate: m.mate }
         })
 
-      return {
-        fen,
-        depth,
-        moves,
-        bestmove: moves[0]?.move || "",
-      }
+      return { fen, depth, moves, bestmove: moves[0]?.move || "" }
     })
-  }
-
-  async streamEvaluation(fen: string, callback: EvalCallback, depth = 18): Promise<void> {
-    return this.runLocked(async () => {
-      if (this.fallbackMode || !this.ready || !this.worker) {
-        callback({ fen, evaluation: 0, mate: null, depth: 0 })
-        return
-      }
-
-      this.evalCallback = callback
-      this.streamActive = true
-
-      this.send("ucinewgame")
-      await this.sleep(30)
-      this.send(`position fen ${fen}`)
-      this.send(`go depth ${depth}`)
-
-      await this.sleep(depth * 100 + 500)
-      this.streamActive = false
-      this.evalCallback = null
-    })
-  }
-
-  stopStreaming() {
-    if (this.worker && !this.fallbackMode) {
-      this.send("stop")
-    }
-    this.streamActive = false
-    this.evalCallback = null
   }
 
   async evaluatePosition(fen: string): Promise<number> {
-    return this.runLocked(async () => {
+    return this.exec(async () => {
       if (this.fallbackMode || !this.ready || !this.worker) return 0
 
       this.lastEval = 0
       this.evalValue = null
 
-      this.send("ucinewgame")
-      await this.sleep(30)
-      this.send(`position fen ${fen}`)
-      this.send("go depth 8")
+      this.send("position fen " + fen)
+      this.send("go depth 6")
 
-      const result = await this.wait("eval", 10000)
+      const result = await this.wait("eval", 5000)
       return this.evalValue ?? this.lastEval ?? 0
     })
   }
 
-  evaluatePositionSync(_fen: string): number {
-    return 0
-  }
-
-  private fallbackEval(fen: string, _depth: number): StockfishEval {
+  private fallbackEval(fen: string): StockfishEval {
     const chess = new Chess(fen)
     const moves = chess.moves({ verbose: true })
     if (moves.length === 0) return { bestmove: "", evaluation: 0, mate: null }
-
-    const picked = moves[Math.floor(Math.random() * moves.length)]
-    return { bestmove: picked.san, evaluation: 0, mate: null, from: picked.from, to: picked.to }
+    const p = moves[Math.floor(Math.random() * moves.length)]
+    return { bestmove: p.san, evaluation: 0, mate: null, from: p.from, to: p.to }
   }
 
   private fallbackMultiPv(fen: string): StockfishMultiPvEval {
