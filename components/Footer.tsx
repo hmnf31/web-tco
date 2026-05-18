@@ -37,7 +37,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 border-t border-white/5 pt-6 text-center text-sm text-white/40">
-          &copy; 2026 TCO Esports. All Rights Reserved. Powered by Gens Una Sumus.
+          &copy; 2026 TCO Esports. All Rights Reserved. Powered by TCO.
         </div>
       </div>
     </footer>

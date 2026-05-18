@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import Navbar from "@/components/Navbar"
+import AnnouncementBanner from "@/components/AnnouncementBanner"
+import SiteTour from "@/components/SiteTour"
 import Footer from "@/components/Footer"
 import MusicPlayer from "@/components/MusicPlayer"
 
@@ -29,6 +31,8 @@ export default function RootLayout({
     <html lang="id" className={`${inter.variable} h-full antialiased`} data-scroll-behavior="smooth">
       <body className="min-h-full flex flex-col bg-slate-950 text-white">
         <Navbar />
+        <AnnouncementBanner />
+        <SiteTour />
         <main className="flex-1">{children}</main>
         <Footer />
         <MusicPlayer />

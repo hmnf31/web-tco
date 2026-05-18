@@ -228,17 +228,7 @@ export default function DivisiPage() {
                     className="flex w-full items-center justify-between rounded-xl border border-white/5 px-4 py-3 transition-all hover:border-cyan-400/20 text-left"
                   >
                     <div className="flex items-center gap-3">
-                      <span
-                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                          i === 0
-                            ? "bg-yellow-400/10 text-yellow-400"
-                            : i === 1
-                              ? "bg-gray-400/10 text-gray-400"
-                              : i === 2
-                                ? "bg-orange-400/10 text-orange-400"
-                                : "bg-white/5 text-white/50"
-                        }`}
-                      >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5 text-xs font-bold text-white/50">
                         {i + 1}
                       </span>
                       <span className="text-sm text-white/80">{p.username}</span>

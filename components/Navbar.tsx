@@ -10,6 +10,7 @@ const navLinks = [
   { href: "/divisi", label: "Divisi" },
   { href: "/arena-training/play", label: "Arena Training", icon: Brain },
   { href: "/artikel", label: "Artikel" },
+  { href: "/pengumuman", label: "Pengumuman" },
   { href: "/register", label: "Daftar Member" },
   { href: "/sponsorship", label: "Sponsorship" },
   { href: "/admin/dashboard", label: "Admin" },

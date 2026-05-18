@@ -41,7 +41,6 @@ export class StockfishEngine {
   private evalCallback: EvalCallback | null = null
   private currentEvalDepth = 0
   private streamActive = false
-  private commandQueue: Array<{ cmd: string; resolve: () => void; reject: (err: any) => void }> = []
   private commandRunning = false
   private lockId = 0
 
@@ -64,33 +63,22 @@ export class StockfishEngine {
   async init(): Promise<void> {
     try {
       const workerUrl = this.getWorkerUrl()
-      this.worker = new Worker(workerUrl, { type: "module" })
+      this.worker = new Worker(workerUrl)
 
       this.worker.onmessage = (e) => {
-        const msg = e.data
-        if (msg.type === "ready") {
-          this.ready = true
-          this.fallbackMode = false
-          this.resolve("init")
-        } else if (msg.type === "error") {
-          console.warn("Stockfish worker error:", msg.data)
-          this.fallbackMode = true
-          this.ready = true
-          this.resolve("init")
-        } else if (msg.type === "line") {
-          this.handleLine(msg.data)
-        }
+        const line = typeof e.data === "string" ? e.data : ""
+        this.handleLine(line)
       }
 
       this.worker.onerror = (err) => {
         console.warn("Stockfish worker error event:", err.message)
         this.fallbackMode = true
         this.ready = true
-        this.resolve("init")
+        this.resolve("uciok")
       }
 
-      this.worker.postMessage("init")
-      await this.wait("init", 20000)
+      this.send("uci")
+      await this.wait("uciok", 20000)
 
       if (this.ready && !this.fallbackMode) {
         this.send("ucinewgame")
@@ -105,11 +93,23 @@ export class StockfishEngine {
   }
 
   private getWorkerUrl(): string {
-    if (typeof window === "undefined") return "/stockfish/stockfish-worker.js"
-    return `${window.location.origin}/stockfish/stockfish-worker.js`
+    if (typeof window === "undefined") return "/stockfish/stockfish-18-lite-single.js"
+    return `${window.location.origin}/stockfish/stockfish-18-lite-single.js`
   }
 
   private handleLine(line: string) {
+    if (line === "uciok") {
+      this.ready = true
+      this.fallbackMode = false
+      this.resolve("uciok")
+      return
+    }
+
+    if (line === "readyok") {
+      this.resolve("readyok")
+      return
+    }
+
     if (line.startsWith("bestmove")) {
       this.isAnalyzing = false
       this.streamActive = false
@@ -122,6 +122,7 @@ export class StockfishEngine {
         this.multiPvResults.push({ move: bestmove, san: bestmove, cp: Math.round(this.lastEval * 100), winrate: 0.5, mate: this.lastMate })
       }
       this.resolve("bestmove")
+      return
     }
 
     if (line.startsWith("info")) {
@@ -131,7 +132,6 @@ export class StockfishEngine {
       let depthReached = 0
       let multiPv = -1
       let pvMove = ""
-      let curLine = ""
 
       for (let i = 0; i < parts.length; i++) {
         if (parts[i] === "depth") depthReached = parseInt(parts[i + 1], 10) || 0
@@ -140,7 +140,6 @@ export class StockfishEngine {
         if (parts[i] === "score" && parts[i + 1] === "mate") scoreMate = parseInt(parts[i + 2], 10)
         if (parts[i] === "pv") {
           pvMove = parts[i + 1] || ""
-          curLine = parts.slice(i + 1).join(" ")
         }
       }
 
