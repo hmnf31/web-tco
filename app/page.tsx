@@ -1,7 +1,37 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowRight, Users, Trophy, Swords, Music, MessageCircle, Shield, TrendingUp, Newspaper } from "lucide-react"
 import JadwalCard from "@/components/JadwalCard"
+
+export const metadata: Metadata = {
+  title: "TCO Esports — Komunitas Catur Online TikTok Indonesia #1",
+  description:
+    "TCO Esports (TikTok Chess Online): komunitas catur online terbesar di TikTok Indonesia. Bergabung dengan 500+ anggota, ikuti turnamen Arena Kings, dan naikkan peringkat Anda. Rumah bagi petarung otak dan strategi — The Next Level of Digital Competition.",
+  keywords: [
+    "TCO Esports", "tiktok chess", "tiktok chess online", "komunitas catur", "catur online Indonesia",
+    "TCO", "arena kings", "turnamen catur", "chess community Indonesia", "catur tiktok",
+    "TCO klub catur", "chess online Indonesia", "genz catur", "main catur online",
+  ],
+  openGraph: {
+    title: "TCO Esports — Komunitas Catur Online TikTok Indonesia #1",
+    description:
+      "Rumah bagi petarung otak dan strategi. Komunitas Catur Online terbesar di TikTok Indonesia. Daftar sekarang!",
+    type: "website",
+    url: "https://web-tco.vercel.app",
+    siteName: "TCO Esports",
+    locale: "id_ID",
+    images: [{ url: "https://i.ibb.co/6cWG2NZR/Gemini-Generated-Image-4o0n3p4o0n3p4o0n.png", width: 600, height: 400, alt: "TCO Esports" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TCO Esports — Komunitas Catur Online TikTok Indonesia",
+    description: "Rumah bagi petarung otak dan strategi. Daftar member sekarang!",
+    images: ["https://i.ibb.co/6cWG2NZR/Gemini-Generated-Image-4o0n3p4o0n3p4o0n.png"],
+  },
+  robots: "index, follow",
+  alternates: { canonical: "https://web-tco.vercel.app" },
+}
 
 const jadwalData = [
   {
@@ -30,9 +60,51 @@ const jadwalData = [
   },
 ]
 
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://web-tco.vercel.app/#website",
+      url: "https://web-tco.vercel.app",
+      name: "TCO Esports",
+      description: "Komunitas Catur Online TikTok Indonesia — The Next Level of Digital Competition",
+      inLanguage: "id",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: { "@type": "EntryPoint", urlTemplate: "https://web-tco.vercel.app/search?q={search_term_string}" },
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://web-tco.vercel.app/#organization",
+      name: "TCO Esports",
+      url: "https://web-tco.vercel.app",
+      description: "Komunitas Catur Online terbesar di TikTok Indonesia.",
+      logo: "https://i.ibb.co/6cWG2NZR/Gemini-Generated-Image-4o0n3p4o0n3p4o0n.png",
+      sameAs: [
+        "https://www.tiktok.com/@tco.chess",
+        "https://wa.me/6283878170957",
+      ],
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://web-tco.vercel.app/#webpage",
+      url: "https://web-tco.vercel.app",
+      name: "TCO Esports — Komunitas Catur Online TikTok Indonesia #1",
+      description: "Rumah bagi petarung otak dan strategi. Komunitas Catur Online terbesar di TikTok Indonesia.",
+      isPartOf: { "@id": "https://web-tco.vercel.app/#website" },
+      about: { "@id": "https://web-tco.vercel.app/#organization" },
+    },
+  ],
+}
+
 export default function Home() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
+
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-white/5">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(0,210,255,0.08),transparent_50%)]" />

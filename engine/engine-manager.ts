@@ -1,26 +1,27 @@
-import { StockfishEngine, type StockfishEval, type StockfishMultiPvEval } from "./stockfish-engine"
-import { TCOEngine, type TCOEval } from "./tco-engine"
+import { WorkerEngine, type StockfishEval, type StockfishMultiPvEval } from "./worker-engine"
 
 export class EngineManager {
-  private stockfish: StockfishEngine
-  private tcoEngine: TCOEngine | null = null
+  private stockfish: WorkerEngine
   private _ready = false
 
   constructor() {
-    this.stockfish = new StockfishEngine()
+    this.stockfish = new WorkerEngine()
   }
 
   async init(): Promise<void> {
     try {
       await this.stockfish.init()
+      await this.stockfish.configure({ threads: 1, hash: 16 })
     } catch {
       // stockfish init failed, fallback mode
     }
     this._ready = true
   }
 
-  setBotElo(elo: number): void {
-    this.tcoEngine = new TCOEngine(elo)
+  async configure(options: { threads?: number; hash?: number; skillLevel?: number }): Promise<void> {
+    if (this._ready) {
+      await this.stockfish.configure(options)
+    }
   }
 
   quit(): void {
@@ -28,23 +29,12 @@ export class EngineManager {
     this._ready = false
   }
 
-  async getBestMove(fen: string): Promise<StockfishEval> {
-    const tco = this.tcoEngine
-    if (tco) {
-      const result: TCOEval = tco.getBestMove(fen, 3)
-      return {
-        bestmove: result.displayBestmove || result.bestmove,
-        evaluation: result.evaluation,
-        mate: null,
-        from: result.from,
-        to: result.to,
-      }
-    }
-    return this.stockfish.getBestMove(fen)
+  async getBestMove(fen: string, movetime = 700): Promise<StockfishEval> {
+    return this.stockfish.getBestMove(fen, movetime)
   }
 
   async evaluateAllMoves(fen: string, depth = 14, multiPv = 10): Promise<StockfishMultiPvEval> {
-    if (this._ready && !this.isFallback()) {
+    if (this._ready) {
       return this.stockfish.evaluateAllMoves(fen, depth, multiPv)
     }
     const { Chess } = await import("chess.js")
@@ -59,15 +49,12 @@ export class EngineManager {
   }
 
   async evaluatePositionAsync(fen: string): Promise<number> {
-    if (this._ready && !this.isFallback()) {
+    if (this._ready) {
       try {
         return await this.stockfish.evaluatePosition(fen)
       } catch {
         return 0
       }
-    }
-    if (this.tcoEngine) {
-      return this.tcoEngine.evaluatePosition(fen)
     }
     return 0
   }
@@ -77,10 +64,10 @@ export class EngineManager {
   }
 
   isFallback(): boolean {
-    return this.stockfish.isFallback()
+    return !this.stockfish.isReady()
   }
 
   isStockfishReady(): boolean {
-    return this._ready && !this.stockfish.isFallback()
+    return this.stockfish.isReady()
   }
 }

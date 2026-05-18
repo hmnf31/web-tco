@@ -48,7 +48,7 @@ export function usePlayController() {
 
     const delay = getBotDelayMs(ctx.timeMode, ctx.customMinutes)
 
-    const result = await ctx.engine.getBestMove(gameRef.current.fen())
+    const result = await ctx.engine.getBestMove(gameRef.current.fen(), 150)
 
     setTimeout(() => {
       if (!result.bestmove) {
@@ -152,9 +152,9 @@ export function usePlayController() {
     return () => clearInterval(interval)
   }, [ctx.gameStarted, ctx.gameOver, ctx.engine])
 
-  function startGame(color: PlayerColor) {
+  function startGame(color: PlayerColor, skillLevel = 10) {
     if (!ctx.engineReady) return
-    ctx.engine.setBotElo(ctx.bot.rating)
+    ctx.engine.configure({ threads: 1, hash: 16, skillLevel })
     const fresh = new Chess()
     const secs = getTimeInSeconds(ctx.timeMode, ctx.customMinutes)
     gameRef.current = fresh

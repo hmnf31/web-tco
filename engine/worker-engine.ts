@@ -23,14 +23,12 @@ export type StockfishMultiPvEval = {
   bestmove: string
 }
 
-export type EvalCallback = (evalData: { fen: string; evaluation: number; mate: number | null; depth: number }) => void
-
-export class StockfishEngine {
+export class WorkerEngine {
   private worker: Worker | null = null
   private ready = false
-  private fallbackMode = false
   private resolvers = new Map<string, (value: any) => void>()
   private busy = false
+  private workerUrl: string
 
   private lastEval = 0
   private lastMate: number | null = null
@@ -39,57 +37,38 @@ export class StockfishEngine {
   private multiPvResults: MoveEval[] = []
   private multiPvCount = 0
 
+  constructor(workerUrl = "/workers/chess-engine.worker.js") {
+    this.workerUrl = workerUrl
+  }
+
   async init(): Promise<void> {
-    try {
-      const url = this.getWorkerUrl()
-      this.worker = new Worker(url)
+    return new Promise((resolve) => {
+      try {
+        this.worker = new Worker(this.workerUrl)
 
-      this.worker.onmessage = (e) => {
-        const line = typeof e.data === "string" ? e.data : ""
-        this.handleLine(line)
-      }
+        this.worker.onmessage = (e) => {
+          const line = typeof e.data === "string" ? e.data : ""
+          this.handleLine(line)
+        }
 
-      this.worker.onerror = (err) => {
-        console.warn("Stockfish error:", err.message)
-        this.fallbackMode = true
+        this.worker.onerror = () => {
+          this.ready = true
+          resolve()
+        }
+
+        this.wait("uciok", 10000).then(() => {
+          this.ready = true
+          resolve()
+        })
+      } catch {
         this.ready = true
-        this.resolve("uciok")
+        resolve()
       }
-
-      this.send("uci")
-      await this.wait("uciok", 15000)
-      if (!this.ready || this.fallbackMode) return
-
-      await this.configureUciLimits()
-      this.send("isready")
-      await this.wait("readyok", 5000)
-    } catch (err) {
-      console.warn("Stockfish init failed:", err)
-      this.fallbackMode = true
-      this.ready = true
-    }
-  }
-
-  private async configureUciLimits(): Promise<void> {
-    this.send("setoption name Threads value 1")
-    await this.sleep(30)
-    this.send("setoption name Hash value 16")
-    await this.sleep(30)
-    this.send("setoption name Use NNUE value false")
-    await this.sleep(30)
-    this.send("ucinewgame")
-    await this.sleep(50)
-  }
-
-  private getWorkerUrl(): string {
-    if (typeof window === "undefined") return "/stockfish/stockfish-18-lite-single.js"
-    return `${window.location.origin}/stockfish/stockfish-18-lite-single.js`
+    })
   }
 
   private handleLine(line: string) {
     if (line === "uciok") {
-      this.ready = true
-      this.fallbackMode = false
       this.resolve("uciok")
       return
     }
@@ -147,13 +126,9 @@ export class StockfishEngine {
   }
 
   private send(cmd: string) {
-    if (this.worker && !this.fallbackMode) {
+    if (this.worker) {
       this.worker.postMessage(cmd)
     }
-  }
-
-  private sleep(ms: number) {
-    return new Promise((r) => setTimeout(r, ms))
   }
 
   private wait(id: string, timeoutMs = 5000): Promise<any> {
@@ -177,7 +152,7 @@ export class StockfishEngine {
   }
 
   private async exec<T>(fn: () => Promise<T>): Promise<T> {
-    while (this.busy) await this.sleep(20)
+    while (this.busy) await new Promise((r) => setTimeout(r, 20))
     this.busy = true
     try {
       return await fn()
@@ -186,11 +161,20 @@ export class StockfishEngine {
     }
   }
 
-  async getBestMove(fen: string): Promise<StockfishEval> {
+  async setOption(name: string, value: string): Promise<void> {
+    this.send(`setoption name ${name} value ${value}`)
+    await new Promise((r) => setTimeout(r, 20))
+  }
+
+  async configure(options: { threads?: number; hash?: number; skillLevel?: number }): Promise<void> {
+    if (options.threads !== undefined) await this.setOption("Threads", String(options.threads))
+    if (options.hash !== undefined) await this.setOption("Hash", String(options.hash))
+    if (options.skillLevel !== undefined) await this.setOption("Skill Level", String(options.skillLevel))
+  }
+
+  async getBestMove(fen: string, movetime = 700): Promise<StockfishEval> {
     return this.exec(async () => {
-      if (this.fallbackMode || !this.ready || !this.worker) {
-        return this.fallbackEval(fen)
-      }
+      if (!this.ready || !this.worker) return { bestmove: "", evaluation: 0, mate: null }
 
       this.lastEval = 0
       this.lastMate = null
@@ -198,11 +182,11 @@ export class StockfishEngine {
       this.multiPvResults = []
 
       this.send("position fen " + fen)
-      this.send("go movetime 700")
+      this.send(`go movetime ${movetime}`)
 
-      const result = await this.wait("bestmove", 5000)
+      const result = await this.wait("bestmove", Math.max(movetime + 2000, 5000))
       if (!result || !this.bestmoveValue) {
-        return this.fallbackEval(fen)
+        return { bestmove: "", evaluation: 0, mate: null }
       }
       return this.bestmoveValue!
     })
@@ -210,9 +194,7 @@ export class StockfishEngine {
 
   async evaluateAllMoves(fen: string, depth = 12, multiPv = 10): Promise<StockfishMultiPvEval> {
     return this.exec(async () => {
-      if (this.fallbackMode || !this.ready || !this.worker) {
-        return this.fallbackMultiPv(fen)
-      }
+      if (!this.ready || !this.worker) return this.fallbackMultiPv(fen)
 
       this.multiPvResults = []
       this.multiPvCount = multiPv
@@ -220,7 +202,7 @@ export class StockfishEngine {
       this.lastMate = null
 
       this.send("setoption name MultiPv value " + multiPv)
-      await this.sleep(20)
+      await new Promise((r) => setTimeout(r, 20))
       this.send("position fen " + fen)
       this.send("go movetime 1500")
 
@@ -243,7 +225,7 @@ export class StockfishEngine {
 
   async evaluatePosition(fen: string): Promise<number> {
     return this.exec(async () => {
-      if (this.fallbackMode || !this.ready || !this.worker) return 0
+      if (!this.ready || !this.worker) return 0
 
       this.lastEval = 0
       this.evalValue = null
@@ -254,14 +236,6 @@ export class StockfishEngine {
       const result = await this.wait("eval", 5000)
       return this.evalValue ?? this.lastEval ?? 0
     })
-  }
-
-  private fallbackEval(fen: string): StockfishEval {
-    const chess = new Chess(fen)
-    const moves = chess.moves({ verbose: true })
-    if (moves.length === 0) return { bestmove: "", evaluation: 0, mate: null }
-    const p = moves[Math.floor(Math.random() * moves.length)]
-    return { bestmove: p.san, evaluation: 0, mate: null, from: p.from, to: p.to }
   }
 
   private fallbackMultiPv(fen: string): StockfishMultiPvEval {
@@ -277,10 +251,6 @@ export class StockfishEngine {
 
   isReady(): boolean {
     return this.ready
-  }
-
-  isFallback(): boolean {
-    return this.fallbackMode
   }
 
   quit() {

@@ -65,8 +65,8 @@ const BOARD_CSS = `
 `
 
 const trainingLinks = [
-  { href: "/arena-training/play", label: "Play", icon: Swords },
   { href: "/arena-training/analysis", label: "Analysis", icon: Brain },
+  { href: "/arena-training/play", label: "Play", icon: Swords },
   { href: "/arena-training/learn", label: "Puzzles", icon: BookOpen },
   { href: "/arena-training/openings", label: "Openings", icon: Shuffle },
   { href: "/arena-training/turing", label: "Bot or Not", icon: Bot },

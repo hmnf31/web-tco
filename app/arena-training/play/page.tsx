@@ -137,6 +137,8 @@ export default function PlayBotPage() {
     animation: { enabled: true, duration: 200 },
   } as any
 
+  const [skillLevel] = useState(10)
+
   function selectBot(bot: BotInfo) {
     ctx.setBot(bot)
     setShowBotList(false)
@@ -146,13 +148,18 @@ export default function PlayBotPage() {
   if (!ctx.gameStarted) {
     return (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-4xl">
+        <div className="mb-6 rounded-xl border border-yellow-400/20 bg-yellow-400/[0.05] px-4 py-3 text-center">
+          <p className="text-xs font-medium text-yellow-400">Fitur VS Bot Training dalam pengembangan</p>
+          <p className="mt-0.5 text-[11px] text-yellow-400/60">Mode preview — engine belum tersedia. Nantikan update selanjutnya!</p>
+        </div>
+
         <div className="text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 ring-1 ring-cyan-400/20">
             <Sword className="h-8 w-8 text-cyan-400" />
           </div>
           <h1 className="mt-4 text-3xl font-bold text-white">VS Bot Training</h1>
           <p className="mt-1 text-sm text-white/50">Pilih lawan dari Bot_Anggota Divisi TCO Chess atau engine catur</p>
-          {ctx.engineReady && (
+          {false && ctx.engineReady && (
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="mt-3 flex items-center justify-center gap-2">
               <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-medium bg-green-400/10 text-green-400 border border-green-400/20">
                 <Cpu className="h-3 w-3" /> Stockfish 18 Siap
@@ -301,15 +308,16 @@ export default function PlayBotPage() {
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => controller.startGame("white")}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] ${!ctx.engineReady ? "opacity-50 cursor-not-allowed" : ""}`}>
+              <button disabled
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 opacity-40 cursor-not-allowed">
                 <Play className="h-4 w-4" /> Main Putih
               </button>
-              <button onClick={() => controller.startGame("black")}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-white/80 transition-all hover:border-cyan-400/30 hover:text-cyan-400 ${!ctx.engineReady ? "opacity-50 cursor-not-allowed" : ""}`}>
+              <button disabled
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-white/80 opacity-40 cursor-not-allowed">
                 <Play className="h-4 w-4" /> Main Hitam
               </button>
             </div>
+            <p className="mt-2 text-center text-[10px] text-yellow-400/50">Fitur akan tersedia setelah engine selesai dikonfigurasi</p>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="space-y-4">

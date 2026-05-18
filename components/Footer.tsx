@@ -36,7 +36,13 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t border-white/5 pt-6 text-center text-sm text-white/40">
+        <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-white/30">
+          <a href="/privacy-policy" className="hover:text-white/50 transition-colors">Privacy Policy</a>
+          <a href="/terms" className="hover:text-white/50 transition-colors">Terms of Service</a>
+          <a href="/about" className="hover:text-white/50 transition-colors">About</a>
+          <a href="/contact" className="hover:text-white/50 transition-colors">Contact</a>
+        </div>
+        <div className="mt-4 border-t border-white/5 pt-4 text-center text-sm text-white/40">
           &copy; 2026 TCO Esports. All Rights Reserved. Powered by TCO.
         </div>
       </div>
