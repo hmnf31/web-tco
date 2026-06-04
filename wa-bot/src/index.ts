@@ -18,7 +18,7 @@ app.use(express.json())
 // WhatsApp Client Initialization
 // ---------------------------------------------------------------------------
 const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new LocalAuth({ dataPath: process.env.WA_SESSION_PATH || '/data/.wwebjs_auth' }),
   puppeteer: {
     headless: true,
     args: [
