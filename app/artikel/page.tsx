@@ -1,40 +1,41 @@
 import Link from "next/link"
-import { Trophy, CalendarDays, ArrowLeft, TrendingUp, Users, Target } from "lucide-react"
+import { CalendarDays, ArrowLeft, Newspaper } from "lucide-react"
+import { getSupabase } from "@/lib/supabaseClient"
 
-const articles = [
-  {
-    title: "Juara 3 Arena Kings Mei 2026 — Podium Pertama TCO Esports!",
-    date: "25 Mei 2026",
-    icon: Target,
-    content: [
-      "Ini adalah momen yang dinanti-nantikan! Pada bulan Mei 2026, TCO Esports berhasil menembus posisi 3 besar Arena Kings Chess.com. Pencapaian ini menobatkan TCO sebagai salah satu klub catur online paling kompetitif di Indonesia di panggung global.",
-      "Perjalanan menuju podium ini tidaklah mudah. TCO harus bersaing dengan klub-klub kuat dari berbagai negara. Namun, berkat kerja keras, dedikasi, dan strategi yang tepat, TCO berhasil mengamankan posisi ke-3 dengan selisih poin yang tipis.",
-      "Keberhasilan ini disambut dengan antusiasme luar biasa oleh seluruh anggota TCO. Manajemen TCO mengucapkan terima kasih kepada setiap anggota yang telah berkontribusi, serta mengajak lebih banyak pemain untuk bergabung dan memperkuat tim menuju target berikutnya: Juara 1 Arena Kings!",
-    ],
-  },
-  {
-    title: "Juara 4 Arena Kings April 2026 — Satu Langkah Lebih Dekat ke Puncak",
-    date: "20 April 2026",
-    icon: TrendingUp,
-    content: [
-      "April 2026 mencatatkan peningkatan signifikan bagi TCO Esports di Arena Kings. Tim berhasil naik satu peringkat, mengamankan posisi ke-4 dengan perolehan poin yang lebih kompetitif dibanding bulan sebelumnya.",
-      "Peningkatan ini didorong oleh strategi baru yang diterapkan oleh tim manajemen TCO, termasuk pembagian sesi latihan yang lebih terstruktur dan penggunaan engine analysis untuk evaluasi permainan. Anggota TCO semakin solid dalam mengumpulkan poin, dengan beberapa pemain baru yang bergabung dan langsung memberikan kontribusi berarti.",
-      "Statistik bulan April menunjukkan peningkatan partisipasi sebesar 40% dibanding Maret. Hal ini membuktikan bahwa semangat kompetitif komunitas TCO terus tumbuh dan semakin matang dalam menghadapi turnamen global.",
-    ],
-  },
-  {
-    title: "Juara 5 Arena Kings Maret 2026 — Awal Perjalanan TCO di Panggung Global",
-    date: "15 Maret 2026",
-    icon: Trophy,
-    content: [
-      "Bulan Maret 2026 menjadi saksi sejarah pertama TCO Esports dalam mengikuti kompetisi global — Arena Kings di Chess.com. Dengan persiapan yang matang dan semangat juang yang tinggi, tim TCO berhasil menembus persaingan sengit dan mengamankan posisi ke-5 di klasemen akhir.",
-      "Pencapaian ini merupakan hasil kerja keras seluruh anggota TCO yang berlomba-lomba mengumpulkan poin secara kolektif. Kapten tim, Teddy Sapta Prayoga, memimpin dengan skor tertinggi dan memberikan motivasi kepada seluruh anggota untuk terus berjuang di setiap sesi pertandingan.",
-      "\"Ini baru permulaan,\" ujar perwakilan manajemen TCO. \"Kami bangga dengan perjuangan semua anggota. Posisi ini menjadi motivasi untuk terus meningkatkan performa di bulan-bulan berikutnya.\"",
-    ],
-  },
-]
+function formatDate(dateStr: string) {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString("id-ID", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+}
 
-export default function ArtikelPage() {
+export default async function ArtikelPage() {
+  let articles: {
+    id: string
+    title: string
+    slug: string
+    content: string
+    excerpt: string
+    published_at: string
+    created_at: string
+    author: string
+  }[] = []
+
+  try {
+    const supabase = getSupabase()
+    const { data: rawArticles } = await supabase
+      .from("tco_articles")
+      .select("*")
+      .eq("is_published", true)
+      .order("published_at", { ascending: false })
+
+    articles = (rawArticles || []) as typeof articles
+  } catch (err) {
+    console.error("Failed to fetch articles:", err)
+  }
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <Link
@@ -50,36 +51,45 @@ export default function ArtikelPage() {
       </div>
 
       <div className="mt-12 space-y-8">
-        {articles.map((article, idx) => {
-          const Icon = article.icon
+        {(!articles || articles.length === 0) && (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-12 text-center">
+            <Newspaper className="mx-auto h-12 w-12 text-white/20" />
+            <p className="mt-4 text-sm text-white/40">Belum ada artikel. Pantau terus!</p>
+          </div>
+        )}
+
+        {articles?.map((article) => {
+          const paragraphs = article.content.split("\n\n").filter((p: string) => p.trim())
           return (
-            <article
-              key={idx}
-              className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-all hover:border-cyan-400/20"
-            >
-              <div className="p-8">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-400">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-white sm:text-xl">{article.title}</h2>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-white/40">
-                      <CalendarDays className="h-3.5 w-3.5" />
-                      {article.date}
+            <Link key={article.id} href={`/artikel/${article.slug}`}>
+              <article className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition-all hover:border-cyan-400/20">
+                <div className="p-8">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-400">
+                      <Newspaper className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-white sm:text-xl">{article.title}</h2>
+                      <div className="mt-1 flex items-center gap-2 text-xs text-white/40">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        {formatDate(article.published_at || article.created_at)}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-6 space-y-4">
-                  {article.content.map((paragraph, i) => (
-                    <p key={i} className="text-sm leading-relaxed text-white/60">
-                      {paragraph}
-                    </p>
-                  ))}
+                  <div className="mt-6 space-y-4">
+                    {paragraphs.slice(0, 2).map((paragraph: string, i: number) => (
+                      <p key={i} className="text-sm leading-relaxed text-white/60">
+                        {paragraph}
+                      </p>
+                    ))}
+                    {paragraphs.length > 2 && (
+                      <p className="text-sm font-medium text-cyan-400">Baca selengkapnya...</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </article>
+              </article>
+            </Link>
           )
         })}
       </div>

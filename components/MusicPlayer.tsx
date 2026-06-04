@@ -154,7 +154,7 @@ export default function MusicPlayer() {
                       : "border-white/5 text-white/50 hover:border-white/10 hover:text-white/70"
                   }`}>
                   <span className={`shrink-0 ${currentIndex === i && isPlaying ? "text-cyan-400" : "text-white/20"}`}>
-                    {currentIndex === i && isPlaying ? "♪" : `#${i + 1}`}
+                    {currentIndex === i && isPlaying ? <Music className="h-3 w-3" /> : `#${i + 1}`}
                   </span>
                   <span className="flex-1 truncate">{song.title}</span>
                   <a href={`https://music.youtube.com/watch?v=${song.id}`} target="_blank" rel="noopener noreferrer"

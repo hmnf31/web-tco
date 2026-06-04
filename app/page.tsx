@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowRight, Users, Trophy, Swords, Music, MessageCircle, Shield, TrendingUp, Newspaper } from "lucide-react"
+import { ArrowRight, Users, Trophy, Swords, Music, MessageCircle, Shield, TrendingUp, Newspaper, Mail } from "lucide-react"
 import JadwalCard from "@/components/JadwalCard"
+import { getSupabase } from "@/lib/supabaseClient"
 
 export const metadata: Metadata = {
   title: "TCO Esports — Komunitas Catur Online TikTok Indonesia #1",
@@ -100,7 +101,38 @@ const websiteJsonLd = {
   ],
 }
 
-export default function Home() {
+function formatDate(dateStr: string) {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString("id-ID", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+}
+
+export default async function Home() {
+  let latestArticles: {
+    title: string
+    slug: string
+    excerpt: string
+    published_at: string
+    created_at: string
+  }[] = []
+
+  try {
+    const supabase = getSupabase()
+    const { data: rawLatestArticles } = await supabase
+      .from("tco_articles")
+      .select("title, slug, excerpt, published_at, created_at")
+      .eq("is_published", true)
+      .order("published_at", { ascending: false })
+      .limit(5)
+
+    latestArticles = (rawLatestArticles || []) as typeof latestArticles
+  } catch (err) {
+    console.error("Failed to fetch latest articles:", err)
+  }
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
@@ -221,26 +253,29 @@ export default function Home() {
             <p className="mt-2 text-white/50">Simak perjalanan TCO Esports menuju puncak klasemen global</p>
           </div>
 
-           <div className="mt-10 space-y-4">
-              {[
-                { title: "Juara 3 Arena Kings Mei 2026", desc: "Podium Pertama TCO Esports! — TCO menembus posisi 3 besar Arena Kings Chess.com.", href: "/artikel/juara-3-arena-kings-mei-2026", date: "18 Mei 2026" },
-                { title: "Juara 4 Arena Kings April 2026", desc: "Satu Langkah Lebih Dekat ke Puncak — TCO naik satu peringkat dengan peningkatan partisipasi 40%.", href: "/artikel/juara-4-arena-kings-april-2026", date: "20 April 2026" },
-                { title: "Juara 5 Arena Kings Maret 2026", desc: "Awal Perjalanan TCO di Panggung Global — TCO berhasil mengamankan posisi ke-5 di Arena Kings Maret 2026.", href: "/artikel/juara-5-arena-kings-maret-2026", date: "15 Maret 2026" },
-              ].map((a, i) => (
-               <Link key={i} href={a.href} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition-all hover:border-cyan-400/20 group">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10">
-                    <Newspaper className="h-6 w-6 text-cyan-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">{a.title}</h3>
-                    <p className="mt-1 text-xs text-white/50">{a.desc}</p>
-                  </div>
-                  <div className="hidden sm:block shrink-0 text-right">
-                    <p className="text-xs text-white/40">{a.date}</p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-white/20 group-hover:text-cyan-400 transition-colors" />
-               </Link>
-              ))}
+            <div className="mt-10 space-y-4">
+              {(!latestArticles || latestArticles.length === 0) ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
+                  <Newspaper className="mx-auto h-8 w-8 text-white/20" />
+                  <p className="mt-2 text-sm text-white/40">Belum ada artikel. Pantau terus!</p>
+                </div>
+              ) : (
+                latestArticles.map((a, i) => (
+                  <Link key={i} href={`/artikel/${a.slug}`} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition-all hover:border-cyan-400/20 group">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10">
+                      <Newspaper className="h-6 w-6 text-cyan-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">{a.title}</h3>
+                      <p className="mt-1 text-xs text-white/50">{a.excerpt?.substring(0, 100) || ""}</p>
+                    </div>
+                    <div className="hidden sm:block shrink-0 text-right">
+                      <p className="text-xs text-white/40">{formatDate(a.published_at || a.created_at)}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-white/20 group-hover:text-cyan-400 transition-colors" />
+                  </Link>
+                ))
+              )}
             </div>
 
           <div className="mt-8 text-center">
@@ -285,10 +320,11 @@ export default function Home() {
 
            <div className="mt-10 space-y-3">
              {[
-               { place: "3", label: "Arena Kings Mei 2026" },
-               { place: "4", label: "Arena Kings April 2026" },
-               { place: "5", label: "Arena Kings Maret 2026" },
-             ].map((a, i) => (
+                { place: "2", label: "Arena Kings Juni 2026" },
+                { place: "3", label: "Arena Kings Mei 2026" },
+                { place: "4", label: "Arena Kings April 2026" },
+                { place: "5", label: "Arena Kings Maret 2026" },
+              ].map((a, i) => (
                <div
                  key={i}
                  className="flex items-center gap-4 rounded-xl border border-yellow-400/20 bg-gradient-to-r from-yellow-400/5 to-transparent px-6 py-4"
@@ -346,9 +382,9 @@ export default function Home() {
             <div className="flex justify-center">
               <div className="rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/5 to-transparent p-8 text-center">
                 <Trophy className="mx-auto h-16 w-16 text-yellow-400" />
-                <div className="mt-4 text-4xl font-bold text-white">#3</div>
+                <div className="mt-4 text-4xl font-bold text-white">#2</div>
                 <div className="text-sm text-white/50">Peringkat Global</div>
-                <div className="mt-2 text-xs text-cyan-400">Arena Kings Mei 2026</div>
+                <div className="mt-2 text-xs text-cyan-400">Arena Kings Juni 2026</div>
               </div>
             </div>
           </div>
@@ -392,7 +428,7 @@ export default function Home() {
 
           <div className="mt-10 text-center">
             <p className="text-sm text-white/50">
-              📩 Tertarik Menjadi Bagian dari Sejarah TCO? Hubungi Manajemen TCO Esports untuk proposal kerja sama:
+              <Mail className="mr-1 inline h-4 w-4" /> Tertarik Menjadi Bagian dari Sejarah TCO? Hubungi Manajemen TCO Esports untuk proposal kerja sama:
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
               <a

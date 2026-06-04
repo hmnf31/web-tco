@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { MessageCircle, Phone, ArrowRight, Calendar } from "lucide-react"
+import { MessageCircle, Phone, ArrowRight, Calendar, Users, TrendingUp, Shield, Trophy, Video, Tag } from "lucide-react"
 import { useState } from "react"
 
 export default function Sponsorship() {
@@ -90,9 +90,9 @@ export default function Sponsorship() {
                 className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center transition-all hover:border-cyan-400/20"
               >
                 <div className="flex items-center justify-center mb-4 h-12 w-12 rounded-xl bg-cyan-400/10">
-                  {item.icon === "users" && <div className="text-cyan-400">👥</div>}
-                  {item.icon === "trending-up" && <div className="text-cyan-400">📈</div>}
-                  {item.icon === "shield" && <div className="text-cyan-400">🛡️</div>}
+                  {item.icon === "users" && <Users className="h-6 w-6 text-cyan-400" />}
+                  {item.icon === "trending-up" && <TrendingUp className="h-6 w-6 text-cyan-400" />}
+                  {item.icon === "shield" && <Shield className="h-6 w-6 text-cyan-400" />}
                 </div>
                 <h3 className="mt-3 text-sm font-bold text-white">{item.label}</h3>
                 <p className="mt-2 text-xs text-white/50">{item.value}</p>
@@ -142,10 +142,10 @@ export default function Sponsorship() {
                 className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:border-cyan-400/20"
               >
                 <div className="flex-shrink-0 h-10 w-10 items-center justify-center rounded-xl bg-cyan-400/10">
-                  {item.icon === "trophy" && <div className="text-cyan-400">🏆</div>}
-                  {item.icon === "users" && <div className="text-cyan-400">👥</div>}
-                  {item.icon === "video" && <div className="text-cyan-400">🎥</div>}
-                  {item.icon === "brand-watermark" && <div className="text-cyan-400">🏷️</div>}
+                  {item.icon === "trophy" && <Trophy className="h-5 w-5 text-cyan-400" />}
+                  {item.icon === "users" && <Users className="h-5 w-5 text-cyan-400" />}
+                  {item.icon === "video" && <Video className="h-5 w-5 text-cyan-400" />}
+                  {item.icon === "brand-watermark" && <Tag className="h-5 w-5 text-cyan-400" />}
                 </div>
                 <div>
                   <h3 className="mt-1 text-sm font-semibold text-white">{item.title}</h3>

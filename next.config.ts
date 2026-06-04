@@ -7,8 +7,17 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "i.ibb.co",
       },
+      {
+        protocol: "https",
+        hostname: "images.chesscomfiles.com",
+      },
+      {
+        protocol: "https",
+        hostname: "www.chess.com",
+      },
     ],
   },
+  serverExternalPackages: ["sharp"],
 };
 
 export default nextConfig;

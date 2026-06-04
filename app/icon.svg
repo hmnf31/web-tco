@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00D2FF"/>
+      <stop offset="100%" stop-color="#0066FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#bg)"/>
+  <!-- Chess Pawn -->
+  <circle cx="32" cy="20" r="6" fill="#0A0A1A" stroke="#FFD700" stroke-width="1.5"/>
+  <ellipse cx="32" cy="26" rx="5" ry="3" fill="#0A0A1A"/>
+  <rect x="28" y="26" width="8" height="12" rx="2" fill="#0A0A1A"/>
+  <path d="M24 39 L40 39 L38 43 L26 43 Z" fill="#0A0A1A"/>
+  <!-- TCO text -->
+  <text x="32" y="57" font-family="Arial,sans-serif" font-size="9" font-weight="bold" fill="white" text-anchor="middle">TCO</text>
+</svg>
