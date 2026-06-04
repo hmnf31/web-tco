@@ -1,6 +1,36 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin"
 import { validateAdmin } from "@/lib/admin-auth"
+import sanitizeHtml from "sanitize-html"
+
+const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+    "img", "h1", "h2", "h3", "h4", "h5", "h6",
+    "table", "thead", "tbody", "tr", "th", "td",
+    "figure", "figcaption", "hr", "br",
+    "span", "div", "section",
+  ]),
+  allowedAttributes: {
+    "*": ["style", "class", "id", "align"],
+    "a": ["href", "target", "rel"],
+    "img": ["src", "alt", "width", "height"],
+    "td": ["colspan", "rowspan"],
+    "th": ["colspan", "rowspan"],
+    "table": ["border", "cellpadding", "cellspacing"],
+  },
+  allowedStyles: {
+    "*": {
+      "font-family": [/.*/],
+      "font-size": [/^\d+px$/],
+      "text-align": [/^(left|right|center|justify)$/],
+      "color": [/^#[0-9a-fA-F]{3,6}$/, /^rgb\(/],
+      "background-color": [/^#[0-9a-fA-F]{3,6}$/, /^rgb\(/],
+      "font-weight": [/^bold$/],
+      "font-style": [/^italic$/],
+      "text-decoration": [/^underline$/],
+    },
+  },
+}
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization") || ""
@@ -46,13 +76,17 @@ export async function POST(request: Request) {
       try { gamesJson = JSON.parse(gamesJson) } catch { gamesJson = [] }
     }
 
+    const sanitizedContent = sanitizeHtml(body.content || "", SANITIZE_OPTIONS)
+
     const updateData: any = {
       title: body.title,
       slug,
-      content: body.content,
-      excerpt: body.content?.split("\n\n")[0]?.substring(0, 200) || "",
+      content: sanitizedContent,
+      excerpt: sanitizedContent.replace(/<[^>]*>/g, "").split(/\s+/).slice(0, 40).join(" ") || "",
       image_url: body.image_url || "",
       watermarked_image_url: body.image_url || "",
+      image_caption: body.image_caption || "",
+      language: body.language || "id",
       published_at: body.published_at || new Date().toISOString(),
       author: body.author || user.name,
       category: body.category || "Chess News",

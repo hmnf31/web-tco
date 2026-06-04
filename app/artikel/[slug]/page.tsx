@@ -2,10 +2,52 @@ import Link from "next/link"
 import { CalendarDays, ArrowLeft } from "lucide-react"
 import { getSupabase } from "@/lib/supabaseClient"
 import { notFound } from "next/navigation"
+import type { Metadata } from "next"
 import ArticleGameViewer from "@/components/chess/ArticleGameViewer"
 
 interface PageProps {
   params: Promise<{ slug: string }>
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params
+  try {
+    const supabase = getSupabase()
+    const { data: raw } = await supabase
+      .from("tco_articles")
+      .select("title, excerpt, image_url, watermarked_image_url")
+      .eq("slug", slug)
+      .eq("is_published", true)
+      .single()
+
+    const article = raw as any
+    if (!article) return {}
+
+    const imageUrl = article.watermarked_image_url || article.image_url || ""
+
+    return {
+      title: article.title,
+      description: article.excerpt?.replace(/<[^>]*>/g, "").slice(0, 160) || "Baca artikel terbaru dari TCO Esports",
+      openGraph: {
+        title: article.title,
+        description: article.excerpt?.replace(/<[^>]*>/g, "").slice(0, 200) || "Baca artikel terbaru dari TCO Esports",
+        type: "article",
+        url: `https://website-tco.vercel.app/artikel/${slug}`,
+        ...(imageUrl ? {
+          images: [{ url: imageUrl, width: 1200, height: 630, alt: article.title }],
+        } : {}),
+        siteName: "TCO Esports",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: article.title,
+        description: article.excerpt?.replace(/<[^>]*>/g, "").slice(0, 200) || "Baca artikel terbaru dari TCO Esports",
+        ...(imageUrl ? { images: [imageUrl] } : {}),
+      },
+    }
+  } catch {
+    return {}
+  }
 }
 
 export async function generateStaticParams() {
@@ -15,11 +57,7 @@ export async function generateStaticParams() {
 function formatDate(dateStr: string) {
   const date = new Date(dateStr)
   return date.toLocaleDateString("id-ID", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
   })
 }
 
@@ -27,18 +65,10 @@ export default async function ArtikelDetailPage({ params }: PageProps) {
   const { slug } = await params
 
   let article: {
-    id: string
-    title: string
-    slug: string
-    content: string
-    excerpt: string
-    image_url: string
-    watermarked_image_url: string
-    published_at: string
-    created_at: string
-    author: string
-    category: string
-    games_json: string
+    id: string; title: string; slug: string; content: string; excerpt: string
+    image_url: string; watermarked_image_url: string; image_caption?: string
+    published_at: string; created_at: string; author: string; category: string
+    games_json: string; language?: string
   } | null = null
 
   try {
@@ -58,8 +88,6 @@ export default async function ArtikelDetailPage({ params }: PageProps) {
   if (!article) {
     notFound()
   }
-
-  const paragraphs = article.content.split("\n\n").filter((p: string) => p.trim())
 
   let games: { pgn: string }[] = []
   try {
@@ -81,6 +109,9 @@ export default async function ArtikelDetailPage({ params }: PageProps) {
         <div className="mt-2 flex items-center justify-center gap-2 text-sm text-white/40">
           <CalendarDays className="h-4 w-4" />
           {formatDate(article.published_at || article.created_at)}
+          {article.language && (
+            <span className="rounded bg-white/5 px-2 py-0.5 text-[10px] uppercase">{article.language}</span>
+          )}
         </div>
         <div className="mt-1 text-xs text-white/30">{article.author}</div>
       </div>
@@ -92,16 +123,25 @@ export default async function ArtikelDetailPage({ params }: PageProps) {
             alt={article.title}
             className="w-full object-cover"
           />
+          {article.image_caption && (
+            <p className="mt-2 text-center text-xs text-white/30 italic">{article.image_caption}</p>
+          )}
         </div>
       )}
 
-      <div className="mt-8 space-y-6">
-        {paragraphs.map((paragraph: string, i: number) => (
-          <p key={i} className="text-sm leading-relaxed text-white/60">
-            {paragraph}
-          </p>
-        ))}
-      </div>
+      <div
+        className="mt-8 prose prose-invert max-w-none text-sm leading-relaxed text-white/60
+          prose-headings:text-white prose-headings:font-bold
+          prose-a:text-cyan-400 prose-a:no-underline hover:prose-a:underline
+          prose-strong:text-white/80 prose-code:text-cyan-300
+          prose-img:rounded-xl prose-img:my-4
+          prose-table:border-collapse prose-table:border prose-table:border-white/10
+          prose-th:border prose-th:border-white/10 prose-th:bg-white/[0.03] prose-th:px-4 prose-th:py-2 prose-th:text-left prose-th:text-white/70
+          prose-td:border prose-td:border-white/10 prose-td:px-4 prose-td:py-2 prose-td:text-white/60
+          prose-hr:border-white/10
+        "
+        dangerouslySetInnerHTML={{ __html: article.content }}
+      />
 
       {games.length > 0 && (
         <ArticleGameViewer games={games} />

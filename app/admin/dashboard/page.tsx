@@ -1,33 +1,26 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Download, Shield, Loader2, AlertCircle, LogOut, Plus, FileText, Users, Edit3, ExternalLink, Eye, CalendarDays, Image, Sparkles, Trash2 } from "lucide-react"
+import {
+  Search, Download, Shield, Loader2, AlertCircle, LogOut, Plus,
+  FileText, Users, Edit3, ExternalLink, CalendarDays, Trash2,
+} from "lucide-react"
 import { validateAdmin, type AdminUser } from "@/lib/admin-auth"
+import TiptapEditor from "@/components/editor/TiptapEditor"
+import ImageUpload from "@/components/editor/ImageUpload"
 
 export const dynamic = "force-dynamic"
 
 type Member = {
-  id: string
-  created_at: string
-  full_name: string
-  whatsapp_number: string
-  game_username: string
-  division: string
-  payment_info: string
-  status: string
+  id: string; created_at: string; full_name: string; whatsapp_number: string
+  game_username: string; division: string; payment_info: string; status: string
 }
 
 type Article = {
-  id: string
-  title: string
-  slug: string
-  content: string
-  excerpt: string
-  image_url: string
-  published_at: string
-  created_at: string
-  author: string
-  is_published: boolean
+  id: string; title: string; slug: string; content: string; excerpt: string
+  image_url: string; image_caption?: string; language?: string
+  published_at: string; created_at: string; author: string; is_published: boolean
+  games_json?: string
 }
 
 export default function AdminDashboard() {
@@ -53,6 +46,8 @@ export default function AdminDashboard() {
   const [editTitle, setEditTitle] = useState("")
   const [editContent, setEditContent] = useState("")
   const [editImageUrl, setEditImageUrl] = useState("")
+  const [editImageCaption, setEditImageCaption] = useState("")
+  const [editLanguage, setEditLanguage] = useState("id")
   const [editPublishDate, setEditPublishDate] = useState("")
   const [editSlug, setEditSlug] = useState("")
   const [editPgn, setEditPgn] = useState("")
@@ -63,19 +58,11 @@ export default function AdminDashboard() {
   function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     const found = validateAdmin(loginUsername, loginPassword)
-    if (found) {
-      setUser(found)
-      setLoginError("")
-    } else {
-      setLoginError("Username atau password salah")
-    }
+    if (found) { setUser(found); setLoginError("") }
+    else { setLoginError("Username atau password salah") }
   }
 
-  function handleLogout() {
-    setUser(null)
-    setLoginUsername("")
-    setLoginPassword("")
-  }
+  function handleLogout() { setUser(null); setLoginUsername(""); setLoginPassword("") }
 
   useEffect(() => {
     if (!user) return
@@ -84,35 +71,27 @@ export default function AdminDashboard() {
   }, [user])
 
   async function fetchMembers() {
-    setLoading(true)
-    setError("")
+    setLoading(true); setError("")
     try {
       const token = btoa(`${user?.username}:${loginPassword}`)
-      const res = await fetch("/api/admin/members", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await fetch("/api/admin/members", { headers: { Authorization: `Bearer ${token}` } })
       const body = await res.json()
       if (!res.ok) throw new Error(body.error || "Gagal memuat data")
       setMembers(body.data || [])
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Gagal memuat data")
-    } finally { setLoading(false) }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Gagal memuat data") }
+    finally { setLoading(false) }
   }
 
   async function fetchArticles() {
-    setArticlesLoading(true)
-    setArticlesError("")
+    setArticlesLoading(true); setArticlesError("")
     try {
       const token = btoa(`${user?.username}:${loginPassword}`)
-      const res = await fetch("/api/admin/articles", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await fetch("/api/admin/articles", { headers: { Authorization: `Bearer ${token}` } })
       const body = await res.json()
       if (!res.ok) throw new Error(body.error || "Gagal memuat artikel")
       setArticles(body.data || [])
-    } catch (err: unknown) {
-      setArticlesError(err instanceof Error ? err.message : "Gagal memuat artikel")
-    } finally { setArticlesLoading(false) }
+    } catch (err: unknown) { setArticlesError(err instanceof Error ? err.message : "Gagal memuat artikel") }
+    finally { setArticlesLoading(false) }
   }
 
   async function handleOptimize() {
@@ -128,9 +107,8 @@ export default function AdminDashboard() {
       if (data.title) setEditTitle(data.title)
       if (data.content) setEditContent(data.content)
       if (data.slug) setEditSlug(data.slug)
-    } catch (err) {
-      console.error("Optimize error:", err)
-    } finally { setOptimizing(false) }
+    } catch (err) { console.error("Optimize error:", err) }
+    finally { setOptimizing(false) }
   }
 
   async function handleSaveArticle(e: React.FormEvent) {
@@ -139,11 +117,8 @@ export default function AdminDashboard() {
     try {
       let gamesJson: any[] = []
       if (editPgn.trim()) {
-        try {
-          gamesJson = JSON.parse(editPgn.trim())
-        } catch {
-          gamesJson = [{ pgn: editPgn.trim() }]
-        }
+        try { gamesJson = JSON.parse(editPgn.trim()) }
+        catch { gamesJson = [{ pgn: editPgn.trim() }] }
       }
       const payload = {
         id: editingArticle?.id || null,
@@ -151,6 +126,8 @@ export default function AdminDashboard() {
         slug: editSlug,
         content: editContent,
         image_url: editImageUrl,
+        image_caption: editImageCaption,
+        language: editLanguage,
         published_at: editPublishDate ? new Date(editPublishDate).toISOString() : new Date().toISOString(),
         author: user?.name || "Admin TCO",
         games_json: gamesJson,
@@ -159,22 +136,17 @@ export default function AdminDashboard() {
       const token = btoa(`${user?.username}:${loginPassword}`)
       const res = await fetch("/api/admin/articles", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan")
 
-      setShowForm(false)
-      setEditingArticle(null)
+      setShowForm(false); setEditingArticle(null)
       resetForm()
       fetchArticles()
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Gagal menyimpan")
-    } finally { setSaving(false) }
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : "Gagal menyimpan") }
+    finally { setSaving(false) }
   }
 
   async function handleDeleteArticle(article: Article) {
@@ -183,27 +155,18 @@ export default function AdminDashboard() {
       const token = btoa(`${user?.username}:${loginPassword}`)
       const res = await fetch("/api/admin/articles", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id: article.id }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Gagal menghapus")
       fetchArticles()
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Gagal menghapus")
-    }
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : "Gagal menghapus") }
   }
 
   function resetForm() {
-    setEditTitle("")
-    setEditContent("")
-    setEditImageUrl("")
-    setEditPublishDate("")
-    setEditSlug("")
-    setEditPgn("")
+    setEditTitle(""); setEditContent(""); setEditImageUrl(""); setEditImageCaption("")
+    setEditLanguage("id"); setEditPublishDate(""); setEditSlug(""); setEditPgn("")
   }
 
   function openEdit(article: Article) {
@@ -211,6 +174,8 @@ export default function AdminDashboard() {
     setEditTitle(article.title)
     setEditContent(article.content)
     setEditImageUrl(article.image_url || "")
+    setEditImageCaption((article as any).image_caption || "")
+    setEditLanguage((article as any).language || "id")
     setEditSlug(article.slug)
     setEditPublishDate(article.published_at?.substring(0, 16) || "")
     setEditPgn((article as any).games_json || "")
@@ -218,8 +183,7 @@ export default function AdminDashboard() {
   }
 
   function openNew() {
-    setEditingArticle(null)
-    resetForm()
+    setEditingArticle(null); resetForm()
     setEditPublishDate(new Date().toISOString().substring(0, 16))
     setShowForm(true)
   }
@@ -239,13 +203,11 @@ export default function AdminDashboard() {
     const blob = new Blob([csv], { type: "text/csv" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
-    a.href = url
-    a.download = `tco_members_${new Date().toISOString().split("T")[0]}.csv`
-    a.click()
+    a.href = url; a.download = `tco_members_${new Date().toISOString().split("T")[0]}.csv`; a.click()
     URL.revokeObjectURL(url)
   }
 
-  // ── LOGIN FORM ──
+  // ── LOGIN ──
   if (!user) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
@@ -270,7 +232,7 @@ export default function AdminDashboard() {
     )
   }
 
-  // ── ARTICLE FORM MODAL ──
+  // ── ARTICLE FORM ──
   if (showForm) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
@@ -283,6 +245,7 @@ export default function AdminDashboard() {
             <label className="mb-1.5 block text-sm text-white/60">Judul Artikel</label>
             <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} required className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50" />
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1.5 block text-sm text-white/60">Slug (URL)</label>
@@ -293,10 +256,25 @@ export default function AdminDashboard() {
               <input type="datetime-local" value={editPublishDate} onChange={(e) => setEditPublishDate(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50" />
             </div>
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm text-white/60">URL Gambar</label>
-            <input type="url" value={editImageUrl} onChange={(e) => setEditImageUrl(e.target.value)} placeholder="https://..." className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm text-white/60">Bahasa</label>
+              <select value={editLanguage} onChange={(e) => setEditLanguage(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/70 outline-none focus:border-cyan-400/50">
+                <option value="id">Indonesia</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <div />
           </div>
+
+          <ImageUpload
+            imageUrl={editImageUrl}
+            imageCaption={editImageCaption}
+            onImageUrlChange={setEditImageUrl}
+            onImageCaptionChange={setEditImageCaption}
+          />
+
           <div>
             <label className="mb-1.5 block text-sm text-white/60">
               PGN Game{" "}
@@ -311,15 +289,17 @@ Atau paste PGN langsung (1 game per artikel)'
               className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50 resize-y font-mono"
             />
           </div>
+
           <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <label className="text-sm text-white/60">Konten</label>
-              <button type="button" onClick={handleOptimize} disabled={optimizing} className="inline-flex items-center gap-1.5 rounded-lg border border-purple-400/20 bg-purple-400/5 px-3 py-1.5 text-xs font-medium text-purple-400 transition-all hover:bg-purple-400/10 disabled:opacity-50">
-                <Sparkles className="h-3.5 w-3.5" /> {optimizing ? "Mengoptimasi..." : "Optimasi dengan AI"}
-              </button>
-            </div>
-            <textarea rows={14} value={editContent} onChange={(e) => setEditContent(e.target.value)} required className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50 resize-y" />
+            <label className="mb-1.5 block text-sm text-white/60">Konten</label>
+            <TiptapEditor
+              content={editContent}
+              onChange={setEditContent}
+              onOptimize={handleOptimize}
+              optimizing={optimizing}
+            />
           </div>
+
           <div className="flex items-center gap-3">
             <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] disabled:opacity-50">
               {saving ? "Menyimpan..." : editingArticle ? "Update Artikel" : "Publikasikan Artikel"}
@@ -351,7 +331,6 @@ Atau paste PGN langsung (1 game per artikel)'
         )}
       </div>
 
-      {/* ── TABS ── */}
       <div className="mt-8 flex gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
         <button onClick={() => setTab("members")} className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${tab === "members" ? "bg-cyan-400/10 text-cyan-400" : "text-white/50 hover:text-white/80"}`}>
           <Users className="h-4 w-4" /> Member
@@ -361,7 +340,7 @@ Atau paste PGN langsung (1 game per artikel)'
         </button>
       </div>
 
-      {/* ── MEMBERS TAB ── */}
+      {/* MEMBERS */}
       {tab === "members" && (
         <>
           <div className="mt-6 relative">
@@ -413,7 +392,7 @@ Atau paste PGN langsung (1 game per artikel)'
         </>
       )}
 
-      {/* ── ARTICLES TAB ── */}
+      {/* ARTICLES */}
       {tab === "articles" && (
         <>
           <div className="mt-6 flex items-center justify-between">
@@ -444,8 +423,9 @@ Atau paste PGN langsung (1 game per artikel)'
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-bold text-white truncate">{a.title}</h3>
                       <div className="mt-1 flex items-center gap-3 text-xs text-white/40">
-                        <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> {new Date(a.published_at || a.created_at).toLocaleDateString("id-ID", { weekday: undefined, year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                        <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> {new Date(a.published_at || a.created_at).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                         <span>{a.author}</span>
+                        {(a as any).language && <span className="uppercase">{(a as any).language}</span>}
                         <a href={`/artikel/${a.slug}`} target="_blank" className="flex items-center gap-1 text-cyan-400/60 hover:text-cyan-400">
                           <ExternalLink className="h-3 w-3" /> Lihat
                         </a>
