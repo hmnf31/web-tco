@@ -8,8 +8,10 @@ import { sendBroadcast } from './broadcast'
 
 const PORT = parseInt(process.env.PORT || '3001', 10)
 const CRON_TOKEN = process.env.TCO_CRON_TOKEN
-const WA_GROUP_ID = process.env.WA_GROUP_ID
+const WA_GROUP_INVITE = process.env.WA_GROUP_INVITE || process.env.WA_GROUP_ID
 const WEBSITE_URL = process.env.TCO_WEBSITE_URL || 'https://web-tco.vercel.app'
+
+let waGroupId = ''
 
 const app = express()
 app.use(express.json())
@@ -39,8 +41,27 @@ client.on('qr', (qr: string) => {
   console.log('\n🔐 Scan the QR code above with your WhatsApp to authenticate the bot.')
 })
 
-client.on('ready', () => {
+client.on('ready', async () => {
   console.log('✅ WhatsApp bot is authenticated and ready!')
+
+  if (WA_GROUP_INVITE) {
+    try {
+      if (WA_GROUP_INVITE.includes('@g.us')) {
+        waGroupId = WA_GROUP_INVITE
+        console.log(`📋 Using direct Group ID: ${waGroupId}`)
+      } else {
+        const inviteCode = WA_GROUP_INVITE.replace('https://chat.whatsapp.com/', '').replace('chat.whatsapp.com/', '').trim()
+        const inviteInfo = await client.getInviteInfo(inviteCode)
+        waGroupId = inviteInfo.gid._serialized
+        await client.acceptInvite(inviteCode)
+        console.log(`📋 Joined group via invite code. Group ID: ${waGroupId}`)
+      }
+    } catch (err) {
+      console.error('❌ Failed to resolve group invite:', err)
+    }
+  } else {
+    console.warn('⚠️ WA_GROUP_INVITE not set — bot will not broadcast')
+  }
 })
 
 client.on('disconnected', (reason: string) => {
@@ -68,8 +89,8 @@ app.all('/api/trigger-news', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  if (!WA_GROUP_ID) {
-    return res.status(500).json({ error: 'WA_GROUP_ID environment variable is not set' })
+  if (!waGroupId) {
+    return res.status(500).json({ error: 'WA group not configured or joined yet' })
   }
 
   try {
@@ -96,7 +117,7 @@ app.all('/api/trigger-news', async (req, res) => {
       // --- Broadcast ---
       const sent = await sendBroadcast(
         client,
-        WA_GROUP_ID,
+        waGroupId,
         translated.headline,
         translated.summary,
         translated.slug,
