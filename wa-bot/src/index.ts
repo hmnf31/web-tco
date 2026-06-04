@@ -20,7 +20,7 @@ app.use(express.json())
 // WhatsApp Client Initialization
 // ---------------------------------------------------------------------------
 const client = new Client({
-  authStrategy: new LocalAuth({ dataPath: process.env.WA_SESSION_PATH || '/data/.wwebjs_auth' }),
+  authStrategy: new LocalAuth({ dataPath: process.env.WA_SESSION_PATH || './.wwebjs_auth' }),
   puppeteer: {
     headless: true,
     args: [
@@ -51,7 +51,7 @@ client.on('ready', async () => {
         console.log(`📋 Using direct Group ID: ${waGroupId}`)
       } else {
         const inviteCode = WA_GROUP_INVITE.replace('https://chat.whatsapp.com/', '').replace('chat.whatsapp.com/', '').trim()
-        const inviteInfo = await client.getInviteInfo(inviteCode)
+        const inviteInfo = await client.getInviteInfo(inviteCode) as any
         waGroupId = inviteInfo.gid._serialized
         await client.acceptInvite(inviteCode)
         console.log(`📋 Joined group via invite code. Group ID: ${waGroupId}`)
