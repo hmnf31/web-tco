@@ -4,7 +4,7 @@ import { getSupabase } from "@/lib/supabaseClient"
 export async function GET() {
   const supabase = getSupabase()
   
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("tco_announcements")
     .select("*")
     .eq("is_active", true)
