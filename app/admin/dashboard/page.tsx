@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { Search, Download, Shield, Loader2, AlertCircle, LogOut, Plus, FileText, Users, Edit3, ExternalLink, Eye, CalendarDays, Image, Sparkles } from "lucide-react"
-import { getSupabase } from "@/lib/supabaseClient"
 import { validateAdmin, type AdminUser } from "@/lib/admin-auth"
 
 export const dynamic = "force-dynamic"
@@ -87,10 +86,13 @@ export default function AdminDashboard() {
     setLoading(true)
     setError("")
     try {
-      const supabase = getSupabase()
-      const { data, error: err } = await supabase.from("tco_members").select("*").order("created_at", { ascending: false })
-      if (err) throw err
-      setMembers(data || [])
+      const token = btoa(`${user?.username}:${loginPassword}`)
+      const res = await fetch("/api/admin/members", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || "Gagal memuat data")
+      setMembers(body.data || [])
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Gagal memuat data")
     } finally { setLoading(false) }
@@ -100,10 +102,13 @@ export default function AdminDashboard() {
     setArticlesLoading(true)
     setArticlesError("")
     try {
-      const supabase = getSupabase()
-      const { data, error: err } = await (supabase as any).from("tco_articles").select("*").order("published_at", { ascending: false })
-      if (err) throw err
-      setArticles(data || [])
+      const token = btoa(`${user?.username}:${loginPassword}`)
+      const res = await fetch("/api/admin/articles", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || "Gagal memuat artikel")
+      setArticles(body.data || [])
     } catch (err: unknown) {
       setArticlesError(err instanceof Error ? err.message : "Gagal memuat artikel")
     } finally { setArticlesLoading(false) }
@@ -131,32 +136,28 @@ export default function AdminDashboard() {
     e.preventDefault()
     setSaving(true)
     try {
-      const supabase = getSupabase()
-      const slug = editSlug || editTitle.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").substring(0, 80)
       const payload = {
+        id: editingArticle?.id || null,
         title: editTitle,
-        slug,
+        slug: editSlug,
         content: editContent,
-        excerpt: editContent.split("\n\n")[0]?.substring(0, 200) || "",
         image_url: editImageUrl,
-        watermarked_image_url: editImageUrl,
         published_at: editPublishDate || new Date().toISOString(),
         author: user?.name || "Admin TCO",
-        category: "Chess News",
-        is_published: true,
       }
 
-      if (editingArticle) {
-        const { error: err } = await (supabase as any).from("tco_articles").update(payload).eq("id", editingArticle.id)
-        if (err) throw err
-      } else {
-        const { error: err } = await (supabase as any).from("tco_articles").insert({
-          ...payload,
-          source_url: "",
-          source_url_hash: `manual-${Date.now()}`,
-        })
-        if (err) throw err
-      }
+      const token = btoa(`${user?.username}:${loginPassword}`)
+      const res = await fetch("/api/admin/articles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Gagal menyimpan")
+
       setShowForm(false)
       setEditingArticle(null)
       resetForm()
