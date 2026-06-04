@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   }
 
   const supabase = getSupabaseAdmin()
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("tco_members")
     .select("*")
     .order("created_at", { ascending: false })

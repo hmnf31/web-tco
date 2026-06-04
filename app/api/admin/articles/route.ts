@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   }
 
   const supabase = getSupabaseAdmin()
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("tco_articles")
     .select("*")
     .order("published_at", { ascending: false })
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     const slug = body.slug || body.title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").substring(0, 80)
 
     if (body.id) {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("tco_articles")
         .update({
           title: body.title,
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
     } else {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("tco_articles")
         .insert({
           title: body.title,
