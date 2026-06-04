@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Download, Shield, Loader2, AlertCircle, LogOut, Plus, FileText, Users, Edit3, ExternalLink, Eye, CalendarDays, Image, Sparkles } from "lucide-react"
+import { Search, Download, Shield, Loader2, AlertCircle, LogOut, Plus, FileText, Users, Edit3, ExternalLink, Eye, CalendarDays, Image, Sparkles, Trash2 } from "lucide-react"
 import { validateAdmin, type AdminUser } from "@/lib/admin-auth"
 
 export const dynamic = "force-dynamic"
@@ -142,7 +142,7 @@ export default function AdminDashboard() {
         slug: editSlug,
         content: editContent,
         image_url: editImageUrl,
-        published_at: editPublishDate || new Date().toISOString(),
+        published_at: editPublishDate ? new Date(editPublishDate).toISOString() : new Date().toISOString(),
         author: user?.name || "Admin TCO",
       }
 
@@ -167,6 +167,26 @@ export default function AdminDashboard() {
     } finally { setSaving(false) }
   }
 
+  async function handleDeleteArticle(article: Article) {
+    if (!confirm(`Hapus artikel "${article.title}"?`)) return
+    try {
+      const token = btoa(`${user?.username}:${loginPassword}`)
+      const res = await fetch("/api/admin/articles", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id: article.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Gagal menghapus")
+      fetchArticles()
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Gagal menghapus")
+    }
+  }
+
   function resetForm() {
     setEditTitle("")
     setEditContent("")
@@ -181,14 +201,14 @@ export default function AdminDashboard() {
     setEditContent(article.content)
     setEditImageUrl(article.image_url || "")
     setEditSlug(article.slug)
-    setEditPublishDate(article.published_at?.split("T")[0] || "")
+    setEditPublishDate(article.published_at?.substring(0, 16) || "")
     setShowForm(true)
   }
 
   function openNew() {
     setEditingArticle(null)
     resetForm()
-    setEditPublishDate(new Date().toISOString().split("T")[0])
+    setEditPublishDate(new Date().toISOString().substring(0, 16))
     setShowForm(true)
   }
 
@@ -257,8 +277,8 @@ export default function AdminDashboard() {
               <input type="text" value={editSlug} onChange={(e) => setEditSlug(e.target.value)} placeholder="Auto-generated" className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/60 outline-none focus:border-cyan-400/50" />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm text-white/60">Tanggal Publikasi</label>
-              <input type="date" value={editPublishDate} onChange={(e) => setEditPublishDate(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50" />
+              <label className="mb-1.5 block text-sm text-white/60">Tanggal & Waktu Publikasi</label>
+              <input type="datetime-local" value={editPublishDate} onChange={(e) => setEditPublishDate(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50" />
             </div>
           </div>
           <div>
@@ -398,16 +418,21 @@ export default function AdminDashboard() {
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-bold text-white truncate">{a.title}</h3>
                       <div className="mt-1 flex items-center gap-3 text-xs text-white/40">
-                        <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> {new Date(a.published_at || a.created_at).toLocaleDateString("id-ID")}</span>
+                        <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> {new Date(a.published_at || a.created_at).toLocaleDateString("id-ID", { weekday: undefined, year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                         <span>{a.author}</span>
                         <a href={`/artikel/${a.slug}`} target="_blank" className="flex items-center gap-1 text-cyan-400/60 hover:text-cyan-400">
                           <ExternalLink className="h-3 w-3" /> Lihat
                         </a>
                       </div>
                     </div>
-                    <button onClick={() => openEdit(a)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-colors hover:border-cyan-400/30 hover:text-cyan-400">
-                      <Edit3 className="mr-1 inline h-3 w-3" /> Edit
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => openEdit(a)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-colors hover:border-cyan-400/30 hover:text-cyan-400">
+                        <Edit3 className="mr-1 inline h-3 w-3" /> Edit
+                      </button>
+                      <button onClick={() => handleDeleteArticle(a)} className="rounded-lg border border-red-400/20 px-3 py-1.5 text-xs text-red-400/60 transition-colors hover:border-red-400/40 hover:text-red-400">
+                        <Trash2 className="mr-1 inline h-3 w-3" /> Hapus
+                      </button>
+                    </div>
                   </div>
                 ))
               )}

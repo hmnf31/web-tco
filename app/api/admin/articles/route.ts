@@ -90,3 +90,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
+export async function DELETE(request: Request) {
+  const authHeader = request.headers.get("authorization") || ""
+  const token = authHeader.replace(/^Bearer\s+/i, "")
+  const parts = Buffer.from(token, "base64").toString().split(":")
+  const user = validateAdmin(parts[0] || "", parts[1] || "")
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { id } = await request.json()
+  if (!id) {
+    return NextResponse.json({ error: "Article ID required" }, { status: 400 })
+  }
+
+  const supabase = getSupabaseAdmin()
+  const { error } = await (supabase as any).from("tco_articles").delete().eq("id", id)
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true })
+}
