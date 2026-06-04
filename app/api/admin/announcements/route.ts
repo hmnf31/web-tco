@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   }
 
   const supabase = getSupabaseAdmin()
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("tco_announcements")
     .select("*")
     .order("created_at", { ascending: false })
@@ -53,14 +53,14 @@ export async function POST(request: Request) {
   }
 
   if (body.id) {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("tco_announcements")
       .update(dataToSave)
       .eq("id", body.id)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   } else {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("tco_announcements")
       .insert([dataToSave])
 
@@ -84,7 +84,7 @@ export async function DELETE(request: Request) {
 
   const { id } = await request.json()
   const supabase = getSupabaseAdmin()
-  const { error } = await supabase.from("tco_announcements").delete().eq("id", id)
+  const { error } = await (supabase as any).from("tco_announcements").delete().eq("id", id)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
