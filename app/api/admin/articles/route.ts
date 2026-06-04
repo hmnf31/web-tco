@@ -41,21 +41,29 @@ export async function POST(request: Request) {
 
     const slug = body.slug || body.title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").substring(0, 80)
 
+    let gamesJson = body.games_json
+    if (typeof gamesJson === "string") {
+      try { gamesJson = JSON.parse(gamesJson) } catch { gamesJson = [] }
+    }
+
+    const updateData: any = {
+      title: body.title,
+      slug,
+      content: body.content,
+      excerpt: body.content?.split("\n\n")[0]?.substring(0, 200) || "",
+      image_url: body.image_url || "",
+      watermarked_image_url: body.image_url || "",
+      published_at: body.published_at || new Date().toISOString(),
+      author: body.author || user.name,
+      category: body.category || "Chess News",
+      is_published: true,
+      games_json: JSON.stringify(gamesJson || []),
+    }
+
     if (body.id) {
       const { error } = await (supabase as any)
         .from("tco_articles")
-        .update({
-          title: body.title,
-          slug,
-          content: body.content,
-          excerpt: body.content?.split("\n\n")[0]?.substring(0, 200) || "",
-          image_url: body.image_url || "",
-          watermarked_image_url: body.image_url || "",
-          published_at: body.published_at || new Date().toISOString(),
-          author: body.author || user.name,
-          category: body.category || "Chess News",
-          is_published: true,
-        })
+        .update(updateData)
         .eq("id", body.id)
 
       if (error) {
@@ -65,18 +73,9 @@ export async function POST(request: Request) {
       const { error } = await (supabase as any)
         .from("tco_articles")
         .insert({
-          title: body.title,
-          slug,
-          content: body.content,
-          excerpt: body.content?.split("\n\n")[0]?.substring(0, 200) || "",
+          ...updateData,
           source_url: body.source_url || "",
           source_url_hash: body.source_url_hash || `manual-${Date.now()}`,
-          image_url: body.image_url || "",
-          watermarked_image_url: body.image_url || "",
-          published_at: body.published_at || new Date().toISOString(),
-          author: body.author || user.name,
-          category: body.category || "Chess News",
-          is_published: true,
         })
 
       if (error) {

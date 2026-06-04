@@ -38,6 +38,46 @@ async function extractFullContentFromUrl(articleUrl: string): Promise<string> {
   }
 }
 
+interface GameEntry { pgn: string }
+
+async function extractGamesFromUrl(articleUrl: string): Promise<GameEntry[]> {
+  try {
+    const res = await fetch(articleUrl, { signal: AbortSignal.timeout(10000) })
+    const html = await res.text()
+
+    // Try data-pgn attributes on chess-game divs
+    const pgnAttrRegex = /data-pgn=["']([^"']+)["']/g
+    const games: GameEntry[] = []
+    let m
+    while ((m = pgnAttrRegex.exec(html)) !== null) {
+      try {
+        const { Chess } = require("chess.js")
+        const chess = new Chess()
+        chess.loadPgn(m[1])
+        games.push({ pgn: m[1] })
+      } catch {
+        // not a valid PGN, skip
+      }
+    }
+    if (games.length > 0) return games
+
+    // Try JSON-LD with embedded game data (future-proofing)
+    const jsonLdRegex = /<script type="application\/ld\+json"[^>]*>({.*?game.*?})<\/script>/gi
+    while ((m = jsonLdRegex.exec(html)) !== null) {
+      try {
+        const data = JSON.parse(m[1])
+        if (data.pgn) {
+          games.push({ pgn: data.pgn })
+        }
+      } catch {}
+    }
+
+    return games
+  } catch {
+    return []
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get("authorization") || request.headers.get("x-vercel-cron")
@@ -110,6 +150,13 @@ export async function GET(request: Request) {
         }
       }
 
+      let gamesJson: GameEntry[] = []
+      try {
+        gamesJson = await extractGamesFromUrl(sourceUrl)
+      } catch (err) {
+        console.error(`Games extraction failed for "${title}":`, err)
+      }
+
       const { error } = await supabase
         .from("tco_articles")
         .insert({
@@ -125,6 +172,7 @@ export async function GET(request: Request) {
           author: "TCO Official",
           category: "Chess News",
           is_published: true,
+          games_json: JSON.stringify(gamesJson),
         } as any)
 
       if (error) {

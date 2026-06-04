@@ -2,6 +2,7 @@ import Link from "next/link"
 import { CalendarDays, ArrowLeft } from "lucide-react"
 import { getSupabase } from "@/lib/supabaseClient"
 import { notFound } from "next/navigation"
+import ArticleGameViewer from "@/components/chess/ArticleGameViewer"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -17,6 +18,8 @@ function formatDate(dateStr: string) {
     year: "numeric",
     month: "long",
     day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   })
 }
 
@@ -35,6 +38,7 @@ export default async function ArtikelDetailPage({ params }: PageProps) {
     created_at: string
     author: string
     category: string
+    games_json: string
   } | null = null
 
   try {
@@ -56,6 +60,12 @@ export default async function ArtikelDetailPage({ params }: PageProps) {
   }
 
   const paragraphs = article.content.split("\n\n").filter((p: string) => p.trim())
+
+  let games: { pgn: string }[] = []
+  try {
+    const parsed = JSON.parse(article.games_json || "[]")
+    if (Array.isArray(parsed)) games = parsed
+  } catch {}
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
@@ -92,6 +102,10 @@ export default async function ArtikelDetailPage({ params }: PageProps) {
           </p>
         ))}
       </div>
+
+      {games.length > 0 && (
+        <ArticleGameViewer games={games} />
+      )}
 
       <div className="mt-12 text-center">
         <Link

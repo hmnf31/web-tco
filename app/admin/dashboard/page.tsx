@@ -55,6 +55,7 @@ export default function AdminDashboard() {
   const [editImageUrl, setEditImageUrl] = useState("")
   const [editPublishDate, setEditPublishDate] = useState("")
   const [editSlug, setEditSlug] = useState("")
+  const [editPgn, setEditPgn] = useState("")
   const [optimizing, setOptimizing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -136,6 +137,14 @@ export default function AdminDashboard() {
     e.preventDefault()
     setSaving(true)
     try {
+      let gamesJson: any[] = []
+      if (editPgn.trim()) {
+        try {
+          gamesJson = JSON.parse(editPgn.trim())
+        } catch {
+          gamesJson = [{ pgn: editPgn.trim() }]
+        }
+      }
       const payload = {
         id: editingArticle?.id || null,
         title: editTitle,
@@ -144,6 +153,7 @@ export default function AdminDashboard() {
         image_url: editImageUrl,
         published_at: editPublishDate ? new Date(editPublishDate).toISOString() : new Date().toISOString(),
         author: user?.name || "Admin TCO",
+        games_json: gamesJson,
       }
 
       const token = btoa(`${user?.username}:${loginPassword}`)
@@ -193,6 +203,7 @@ export default function AdminDashboard() {
     setEditImageUrl("")
     setEditPublishDate("")
     setEditSlug("")
+    setEditPgn("")
   }
 
   function openEdit(article: Article) {
@@ -202,6 +213,7 @@ export default function AdminDashboard() {
     setEditImageUrl(article.image_url || "")
     setEditSlug(article.slug)
     setEditPublishDate(article.published_at?.substring(0, 16) || "")
+    setEditPgn((article as any).games_json || "")
     setShowForm(true)
   }
 
@@ -284,6 +296,20 @@ export default function AdminDashboard() {
           <div>
             <label className="mb-1.5 block text-sm text-white/60">URL Gambar</label>
             <input type="url" value={editImageUrl} onChange={(e) => setEditImageUrl(e.target.value)} placeholder="https://..." className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm text-white/60">
+              PGN Game{" "}
+              <span className="text-white/30">(JSON array: [{`{"pgn": "1. e4 e5..."}`}] atau PGN mentah)</span>
+            </label>
+            <textarea
+              rows={4}
+              value={editPgn}
+              onChange={(e) => setEditPgn(e.target.value)}
+              placeholder='Contoh: [{&quot;pgn&quot;: &quot;1. e4 e5 2. Nf3 Nc6...&quot;}]
+Atau paste PGN langsung (1 game per artikel)'
+              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50 resize-y font-mono"
+            />
           </div>
           <div>
             <div className="mb-1.5 flex items-center justify-between">
