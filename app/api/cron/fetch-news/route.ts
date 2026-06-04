@@ -131,6 +131,13 @@ export async function GET(request: Request) {
       let translation: { title: string; content: string; slug: string }
       try {
         translation = await translateNews(title, description)
+        // Wrap plain text paragraphs in <p> tags if not already HTML
+        if (!/<[a-z][\s\S]*>/i.test(translation.content)) {
+          translation.content = translation.content
+            .split(/\n\n+/)
+            .map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`)
+            .join("")
+        }
       } catch (err) {
         console.error(`Translation failed for "${title}":`, err)
         translation = {

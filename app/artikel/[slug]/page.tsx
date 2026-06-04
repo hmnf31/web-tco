@@ -89,6 +89,16 @@ export default async function ArtikelDetailPage({ params }: PageProps) {
     notFound()
   }
 
+  // Convert double newlines to paragraphs if the content doesn't contain HTML tags
+  let displayContent = article.content || ""
+  const hasHtml = /<[a-z][\s\S]*>/i.test(displayContent)
+  if (!hasHtml) {
+    displayContent = displayContent
+      .split(/\n\n+/)
+      .map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`)
+      .join("")
+  }
+
   let games: { pgn: string }[] = []
   try {
     const parsed = JSON.parse(article.games_json || "[]")
@@ -132,6 +142,7 @@ export default async function ArtikelDetailPage({ params }: PageProps) {
       <div
         className="mt-8 prose prose-invert max-w-none text-sm leading-relaxed text-white/60
           prose-headings:text-white prose-headings:font-bold
+          prose-p:mb-4
           prose-a:text-cyan-400 prose-a:no-underline hover:prose-a:underline
           prose-strong:text-white/80 prose-code:text-cyan-300
           prose-img:rounded-xl prose-img:my-4
@@ -140,7 +151,7 @@ export default async function ArtikelDetailPage({ params }: PageProps) {
           prose-td:border prose-td:border-white/10 prose-td:px-4 prose-td:py-2 prose-td:text-white/60
           prose-hr:border-white/10
         "
-        dangerouslySetInnerHTML={{ __html: article.content }}
+        dangerouslySetInnerHTML={{ __html: displayContent }}
       />
 
       {games.length > 0 && (

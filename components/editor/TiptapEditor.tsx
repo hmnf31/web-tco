@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
-import History from "@tiptap/extension-history"
 import Underline from "@tiptap/extension-underline"
 import { Table } from "@tiptap/extension-table"
 import TableRow from "@tiptap/extension-table-row"
@@ -22,6 +21,7 @@ import {
 } from "lucide-react"
 
 const FontSize = TextStyle.extend({
+  name: "fontSize", // Unique name to avoid duplicate 'textStyle'
   addAttributes() {
     return {
       fontSize: {
@@ -58,9 +58,9 @@ export default function TiptapEditor({ content, onChange, onOptimize, optimizing
   const [fullscreen, setFullscreen] = useState(false)
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
-      StarterKit.configure({}),
-      History.configure({}),
+      StarterKit,
       Underline,
       TextStyle,
       FontFamily,
@@ -79,8 +79,15 @@ export default function TiptapEditor({ content, onChange, onOptimize, optimizing
     },
   })
 
+  // Sync content when prop changes (e.g. after AI optimization)
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content)
+    }
+  }, [content, editor])
+
   const setFontFamily = useCallback((font: string) => editor?.chain().focus().setFontFamily(font).run(), [editor])
-  const setFontSize = useCallback((size: string) => editor?.chain().focus().setMark("textStyle", { fontSize: size }).run(), [editor])
+  const setFontSize = useCallback((size: string) => editor?.chain().focus().setMark("fontSize", { fontSize: size }).run(), [editor])
   const setAlignment = useCallback((align: string) => editor?.chain().focus().setTextAlign(align).run(), [editor])
 
   const toggleFullscreen = useCallback(() => {
@@ -144,7 +151,24 @@ export default function TiptapEditor({ content, onChange, onOptimize, optimizing
         <ToolBtn icon={List} action={() => editor.chain().focus().toggleBulletList().run()} isActive={isActive("bulletList")} label="Bullet List" />
         <ToolBtn icon={ListOrdered} action={() => editor.chain().focus().toggleOrderedList().run()} isActive={isActive("orderedList")} label="Ordered List" />
         <ToolBtn icon={Minus} action={() => editor.chain().focus().setHorizontalRule().run()} label="Horizontal Line" />
-        <ToolBtn icon={TableIcon} action={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} label="Insert Table" />
+        
+        <div className="mx-1 h-5 w-px bg-white/10" />
+
+        <div className="flex items-center gap-0.5 rounded-lg bg-white/[0.04] p-0.5">
+          <ToolBtn icon={TableIcon} action={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} label="Insert Table" />
+          {isActive("table") && (
+            <>
+              <div className="mx-0.5 h-3 w-px bg-white/10" />
+              <button onClick={() => editor.chain().focus().addRowBefore().run()} className="rounded-md px-1 py-1 text-[10px] text-white/40 hover:bg-white/10 hover:text-white" title="Add Row Above">+Row↑</button>
+              <button onClick={() => editor.chain().focus().addRowAfter().run()} className="rounded-md px-1 py-1 text-[10px] text-white/40 hover:bg-white/10 hover:text-white" title="Add Row Below">+Row↓</button>
+              <button onClick={() => editor.chain().focus().addColumnBefore().run()} className="rounded-md px-1 py-1 text-[10px] text-white/40 hover:bg-white/10 hover:text-white" title="Add Column Before">+Col←</button>
+              <button onClick={() => editor.chain().focus().addColumnAfter().run()} className="rounded-md px-1 py-1 text-[10px] text-white/40 hover:bg-white/10 hover:text-white" title="Add Column After">+Col→</button>
+              <button onClick={() => editor.chain().focus().deleteRow().run()} className="rounded-md px-1 py-1 text-[10px] text-red-400/60 hover:bg-red-400/10 hover:text-red-400" title="Delete Row">-Row</button>
+              <button onClick={() => editor.chain().focus().deleteColumn().run()} className="rounded-md px-1 py-1 text-[10px] text-red-400/60 hover:bg-red-400/10 hover:text-red-400" title="Delete Column">-Col</button>
+              <button onClick={() => editor.chain().focus().deleteTable().run()} className="rounded-md px-1 py-1 text-[10px] text-red-400/60 hover:bg-red-400/10 hover:text-red-400" title="Delete Table">Del Table</button>
+            </>
+          )}
+        </div>
 
         <div className="mx-1 h-5 w-px bg-white/10" />
 

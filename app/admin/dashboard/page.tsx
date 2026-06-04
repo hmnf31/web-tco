@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import {
   Search, Download, Shield, Loader2, AlertCircle, LogOut, Plus,
-  FileText, Users, Edit3, ExternalLink, CalendarDays, Trash2,
+  FileText, Users, Edit3, ExternalLink, CalendarDays, Trash2, Megaphone,
 } from "lucide-react"
 import { validateAdmin, type AdminUser } from "@/lib/admin-auth"
 import TiptapEditor from "@/components/editor/TiptapEditor"
@@ -23,12 +23,18 @@ type Article = {
   games_json?: string
 }
 
+type Announcement = {
+  id: string; created_at: string; title: string; content: string
+  start_date: string; end_date: string; is_active: boolean
+  link_url?: string; link_text?: string
+}
+
 export default function AdminDashboard() {
   const [user, setUser] = useState<AdminUser | null>(null)
   const [loginUsername, setLoginUsername] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [loginError, setLoginError] = useState("")
-  const [tab, setTab] = useState<"members" | "articles">("members")
+  const [tab, setTab] = useState<"members" | "articles" | "announcements">("members")
 
   // Members state
   const [members, setMembers] = useState<Member[]>([])
@@ -40,6 +46,11 @@ export default function AdminDashboard() {
   const [articles, setArticles] = useState<Article[]>([])
   const [articlesLoading, setArticlesLoading] = useState(true)
   const [articlesError, setArticlesError] = useState("")
+
+  // Announcements state
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [announcementsLoading, setAnnouncementsLoading] = useState(true)
+  const [announcementsError, setAnnouncementsError] = useState("")
 
   // Edit modal
   const [editingArticle, setEditingArticle] = useState<Article | null>(null)
@@ -55,6 +66,17 @@ export default function AdminDashboard() {
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
 
+  // Announcement Form State
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null)
+  const [annTitle, setAnnTitle] = useState("")
+  const [annContent, setAnnContent] = useState("")
+  const [annStartDate, setAnnStartDate] = useState("")
+  const [annEndDate, setAnnEndDate] = useState("")
+  const [annIsActive, setAnnIsActive] = useState(true)
+  const [annLinkUrl, setAnnLinkUrl] = useState("")
+  const [annLinkText, setAnnLinkText] = useState("")
+  const [showAnnForm, setShowAnnForm] = useState(false)
+
   function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     const found = validateAdmin(loginUsername, loginPassword)
@@ -68,6 +90,7 @@ export default function AdminDashboard() {
     if (!user) return
     fetchMembers()
     fetchArticles()
+    fetchAnnouncements()
   }, [user])
 
   async function fetchMembers() {
@@ -87,11 +110,33 @@ export default function AdminDashboard() {
     try {
       const token = btoa(`${user?.username}:${loginPassword}`)
       const res = await fetch("/api/admin/articles", { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) {
+        console.error(`Fetch articles failed: ${res.status} ${res.statusText}`)
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Error ${res.status}: Gagal memuat artikel`)
+      }
       const body = await res.json()
-      if (!res.ok) throw new Error(body.error || "Gagal memuat artikel")
       setArticles(body.data || [])
-    } catch (err: unknown) { setArticlesError(err instanceof Error ? err.message : "Gagal memuat artikel") }
-    finally { setArticlesLoading(false) }
+    } catch (err: unknown) {
+      setArticlesError(err instanceof Error ? err.message : "Gagal memuat artikel")
+    } finally {
+      setArticlesLoading(false)
+    }
+  }
+
+  async function fetchAnnouncements() {
+    setAnnouncementsLoading(true); setAnnouncementsError("")
+    try {
+      const token = btoa(`${user?.username}:${loginPassword}`)
+      const res = await fetch("/api/admin/announcements", { headers: { Authorization: `Bearer ${token}` } })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || "Gagal memuat pengumuman")
+      setAnnouncements(body.data || [])
+    } catch (err: unknown) {
+      setAnnouncementsError(err instanceof Error ? err.message : "Gagal memuat pengumuman")
+    } finally {
+      setAnnouncementsLoading(false)
+    }
   }
 
   async function handleOptimize() {
@@ -103,12 +148,20 @@ export default function AdminDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: editTitle, content: editContent }),
       })
+      if (!res.ok) {
+        console.error(`Optimize failed: ${res.status}`)
+        throw new Error("Gagal optimasi AI")
+      }
       const data = await res.json()
       if (data.title) setEditTitle(data.title)
       if (data.content) setEditContent(data.content)
       if (data.slug) setEditSlug(data.slug)
-    } catch (err) { console.error("Optimize error:", err) }
-    finally { setOptimizing(false) }
+    } catch (err) {
+      console.error("Optimize error:", err)
+      alert("Gagal mengoptimasi artikel dengan AI")
+    } finally {
+      setOptimizing(false)
+    }
   }
 
   async function handleSaveArticle(e: React.FormEvent) {
@@ -116,9 +169,11 @@ export default function AdminDashboard() {
     setSaving(true)
     try {
       let gamesJson: any[] = []
-      if (editPgn.trim()) {
-        try { gamesJson = JSON.parse(editPgn.trim()) }
-        catch { gamesJson = [{ pgn: editPgn.trim() }] }
+      const pgnStr = String(editPgn || "").trim()
+
+      if (pgnStr) {
+        try { gamesJson = JSON.parse(pgnStr) }
+        catch { gamesJson = [{ pgn: pgnStr }] }
       }
       const payload = {
         id: editingArticle?.id || null,
@@ -134,19 +189,30 @@ export default function AdminDashboard() {
       }
 
       const token = btoa(`${user?.username}:${loginPassword}`)
-      const res = await fetch("/api/admin/articles", {
+      const endpoint = "/api/admin/articles"
+      console.log(`Saving article to ${endpoint}...`)
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Gagal menyimpan")
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        console.error(`Save failed: ${res.status} ${res.statusText}`)
+        throw new Error(data.error || `Error ${res.status}: Gagal menyimpan`)
+      }
 
       setShowForm(false); setEditingArticle(null)
       resetForm()
       fetchArticles()
-    } catch (err: unknown) { alert(err instanceof Error ? err.message : "Gagal menyimpan") }
-    finally { setSaving(false) }
+    } catch (err: unknown) {
+      console.error("Save article error:", err)
+      alert(err instanceof Error ? err.message : "Gagal menyimpan")
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleDeleteArticle(article: Article) {
@@ -164,9 +230,69 @@ export default function AdminDashboard() {
     } catch (err: unknown) { alert(err instanceof Error ? err.message : "Gagal menghapus") }
   }
 
+  async function handleSaveAnnouncement(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const payload = {
+        id: editingAnnouncement?.id || null,
+        title: annTitle,
+        content: annContent,
+        start_date: annStartDate ? new Date(annStartDate).toISOString() : new Date().toISOString(),
+        end_date: annEndDate ? new Date(annEndDate).toISOString() : null,
+        is_active: annIsActive,
+        link_url: annLinkUrl,
+        link_text: annLinkText,
+      }
+
+      if (!payload.end_date) throw new Error("Tanggal berakhir wajib diisi")
+
+      const token = btoa(`${user?.username}:${loginPassword}`)
+      const res = await fetch("/api/admin/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Gagal menyimpan pengumuman")
+      }
+
+      setShowAnnForm(false); setEditingAnnouncement(null)
+      fetchAnnouncements()
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Gagal menyimpan")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDeleteAnnouncement(ann: Announcement) {
+    if (!confirm(`Hapus pengumuman "${ann.title}"?`)) return
+    try {
+      const token = btoa(`${user?.username}:${loginPassword}`)
+      const res = await fetch("/api/admin/announcements", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: ann.id }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Gagal menghapus")
+      }
+      fetchAnnouncements()
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : "Gagal menghapus") }
+  }
+
   function resetForm() {
     setEditTitle(""); setEditContent(""); setEditImageUrl(""); setEditImageCaption("")
     setEditLanguage("id"); setEditPublishDate(""); setEditSlug(""); setEditPgn("")
+  }
+
+  function resetAnnForm() {
+    setAnnTitle(""); setAnnContent(""); setAnnStartDate(""); setAnnEndDate("")
+    setAnnIsActive(true); setAnnLinkUrl(""); setAnnLinkText("")
   }
 
   function openEdit(article: Article) {
@@ -178,14 +304,44 @@ export default function AdminDashboard() {
     setEditLanguage((article as any).language || "id")
     setEditSlug(article.slug)
     setEditPublishDate(article.published_at?.substring(0, 16) || "")
-    setEditPgn((article as any).games_json || "")
+    
+    // Ensure PGN is always a string in the editor
+    let pgnValue = (article as any).games_json || ""
+    if (typeof pgnValue !== "string") {
+      try { pgnValue = JSON.stringify(pgnValue, null, 2) }
+      catch { pgnValue = "" }
+    }
+    setEditPgn(pgnValue)
+    
     setShowForm(true)
+  }
+
+  function openEditAnn(ann: Announcement) {
+    setEditingAnnouncement(ann)
+    setAnnTitle(ann.title)
+    setAnnContent(ann.content)
+    setAnnStartDate(ann.start_date?.substring(0, 16) || "")
+    setAnnEndDate(ann.end_date?.substring(0, 16) || "")
+    setAnnIsActive(ann.is_active)
+    setAnnLinkUrl(ann.link_url || "")
+    setAnnLinkText(ann.link_text || "")
+    setShowAnnForm(true)
   }
 
   function openNew() {
     setEditingArticle(null); resetForm()
     setEditPublishDate(new Date().toISOString().substring(0, 16))
     setShowForm(true)
+  }
+
+  function openNewAnn() {
+    setEditingAnnouncement(null); resetAnnForm()
+    setAnnStartDate(new Date().toISOString().substring(0, 16))
+    // Default 1 week from now
+    const nextWeek = new Date()
+    nextWeek.setDate(nextWeek.getDate() + 7)
+    setAnnEndDate(nextWeek.toISOString().substring(0, 16))
+    setShowAnnForm(true)
   }
 
   const filteredMembers = members.filter((m) =>
@@ -311,6 +467,63 @@ Atau paste PGN langsung (1 game per artikel)'
     )
   }
 
+  // ── ANNOUNCEMENT FORM ──
+  if (showAnnForm) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mb-8 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white">{editingAnnouncement ? "Edit Pengumuman" : "Buat Pengumuman Baru"}</h1>
+          <button onClick={() => { setShowAnnForm(false); setEditingAnnouncement(null) }} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-white/60 hover:text-white">Kembali</button>
+        </div>
+        <form onSubmit={handleSaveAnnouncement} className="space-y-6">
+          <div>
+            <label className="mb-1.5 block text-sm text-white/60">Judul Pengumuman (Singkat)</label>
+            <input type="text" value={annTitle} onChange={(e) => setAnnTitle(e.target.value)} required placeholder="Contoh: Turnamen Blitz TCO Night" className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50" />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm text-white/60">Isi Pengumuman (Running Text)</label>
+            <textarea rows={3} value={annContent} onChange={(e) => setAnnContent(e.target.value)} required placeholder="Isi pesan yang akan tampil di running text..." className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50 resize-y" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm text-white/60">Waktu Mulai</label>
+              <input type="datetime-local" value={annStartDate} onChange={(e) => setAnnStartDate(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm text-white/60">Waktu Berakhir (Expired)</label>
+              <input type="datetime-local" value={annEndDate} onChange={(e) => setAnnEndDate(e.target.value)} required className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm text-white/60">Link URL (Opsional)</label>
+              <input type="url" value={annLinkUrl} onChange={(e) => setAnnLinkUrl(e.target.value)} placeholder="https://..." className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm text-white/60">Teks Link</label>
+              <input type="text" value={annLinkText} onChange={(e) => setAnnLinkText(e.target.value)} placeholder="Contoh: Daftar Sekarang" className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-400/50" />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="annIsActive" checked={annIsActive} onChange={(e) => setAnnIsActive(e.target.checked)} className="h-4 w-4 rounded border-white/10 bg-white/[0.03] text-cyan-500" />
+            <label htmlFor="annIsActive" className="text-sm text-white/70">Aktifkan Pengumuman</label>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] disabled:opacity-50">
+              {saving ? "Menyimpan..." : editingAnnouncement ? "Update Pengumuman" : "Publikasikan"}
+            </button>
+            <button type="button" onClick={() => { setShowAnnForm(false); setEditingAnnouncement(null) }} className="rounded-xl border border-white/10 px-6 py-3 text-sm text-white/60 hover:text-white">Batal</button>
+          </div>
+        </form>
+      </div>
+    )
+  }
+
   // ── MAIN DASHBOARD ──
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -337,6 +550,9 @@ Atau paste PGN langsung (1 game per artikel)'
         </button>
         <button onClick={() => setTab("articles")} className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${tab === "articles" ? "bg-cyan-400/10 text-cyan-400" : "text-white/50 hover:text-white/80"}`}>
           <FileText className="h-4 w-4" /> Artikel
+        </button>
+        <button onClick={() => setTab("announcements")} className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${tab === "announcements" ? "bg-cyan-400/10 text-cyan-400" : "text-white/50 hover:text-white/80"}`}>
+          <Megaphone className="h-4 w-4" /> Pengumuman
         </button>
       </div>
 
@@ -441,6 +657,67 @@ Atau paste PGN langsung (1 game per artikel)'
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ANNOUNCEMENTS */}
+      {tab === "announcements" && (
+        <>
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-white/50">Total: {announcements.length} pengumuman</p>
+            <button onClick={openNewAnn} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02]">
+              <Plus className="h-4 w-4" /> Tambah Pengumuman
+            </button>
+          </div>
+          {announcementsLoading ? (
+            <div className="mt-10 flex items-center justify-center gap-2 text-white/50"><Loader2 className="h-5 w-5 animate-spin" /> Memuat...</div>
+          ) : announcementsError ? (
+            <div className="mt-10 flex items-center gap-2 rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-sm text-red-400"><AlertCircle className="h-4 w-4" /> {announcementsError}</div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {announcements.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-12 text-center">
+                  <Megaphone className="mx-auto h-10 w-10 text-white/20" />
+                  <p className="mt-3 text-sm text-white/40">Belum ada pengumuman.</p>
+                </div>
+              ) : (
+                announcements.map((ann) => {
+                  const now = new Date()
+                  const start = new Date(ann.start_date)
+                  const end = new Date(ann.end_date)
+                  const isExpired = end < now
+                  const isUpcoming = start > now
+                  const isActive = ann.is_active && !isExpired && !isUpcoming
+
+                  return (
+                    <div key={ann.id} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition-all hover:border-cyan-400/20">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-white truncate">{ann.title}</h3>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${isActive ? "bg-green-400/10 text-green-400" : isUpcoming ? "bg-blue-400/10 text-blue-400" : "bg-red-400/10 text-red-400"}`}>
+                            {isActive ? "Active" : isUpcoming ? "Upcoming" : "Expired"}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-white/40 line-clamp-1">{ann.content}</p>
+                        <div className="mt-2 flex items-center gap-3 text-[10px] text-white/30">
+                          <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> Ends: {new Date(ann.end_date).toLocaleDateString("id-ID", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                          {ann.link_url && <span className="flex items-center gap-1 text-cyan-400/40"><ExternalLink className="h-3 w-3" /> {ann.link_text || "Link"}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => openEditAnn(ann)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-colors hover:border-cyan-400/30 hover:text-cyan-400">
+                          <Edit3 className="mr-1 inline h-3 w-3" /> Edit
+                        </button>
+                        <button onClick={() => handleDeleteAnnouncement(ann)} className="rounded-lg border border-red-400/20 px-3 py-1.5 text-xs text-red-400/60 transition-colors hover:border-red-400/40 hover:text-red-400">
+                          <Trash2 className="mr-1 inline h-3 w-3" /> Hapus
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })
               )}
             </div>
           )}
