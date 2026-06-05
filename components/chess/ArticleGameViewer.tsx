@@ -77,10 +77,8 @@ export default function ArticleGameViewer({ games }: { games: GameData[] }) {
   const fen = useMemo(() => {
     if (!current || moveIndex < 0) return "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     const chess = new Chess()
-    chess.loadPgn(current.chess.pgn())
-    const history = chess.history({ verbose: true })
-    for (let i = 0; i <= moveIndex && i < history.length; i++) {
-      chess.move(history[i].san)
+    for (let i = 0; i <= moveIndex && i < current.moves.length; i++) {
+      chess.move(current.moves[i])
     }
     return chess.fen()
   }, [current, moveIndex])
@@ -88,10 +86,8 @@ export default function ArticleGameViewer({ games }: { games: GameData[] }) {
   const lastMove = useMemo<[Key, Key] | undefined>(() => {
     if (!current || moveIndex < 0) return undefined
     const chess = new Chess()
-    chess.loadPgn(current.chess.pgn())
-    const history = chess.history({ verbose: true })
-    for (let i = 0; i <= moveIndex && i < history.length; i++) {
-      chess.move(history[i].san)
+    for (let i = 0; i <= moveIndex && i < current.moves.length; i++) {
+      chess.move(current.moves[i])
     }
     const hist = chess.history({ verbose: true })
     if (hist.length > 0) {
@@ -115,11 +111,10 @@ export default function ArticleGameViewer({ games }: { games: GameData[] }) {
   }, [current])
 
   const turn = useMemo(() => {
+    if (!current) return "Putih"
     const chess = new Chess()
-    chess.loadPgn(current?.chess.pgn() || "")
-    const history = chess.history({ verbose: true })
-    for (let i = 0; i <= moveIndex && i < history.length; i++) {
-      chess.move(history[i].san)
+    for (let i = 0; i <= moveIndex && i < current.moves.length; i++) {
+      chess.move(current.moves[i])
     }
     return chess.turn() === "w" ? "Putih" : "Hitam"
   }, [current, moveIndex])

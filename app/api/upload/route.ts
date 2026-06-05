@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import { put } from "@vercel/blob"
 
 export async function POST(request: Request) {
   try {
@@ -14,13 +13,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "File too large (max 5MB)" }, { status: 400 })
     }
 
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      return NextResponse.json({ error: "Blob storage not configured" }, { status: 500 })
+    const apiKey = process.env.IMGBB_SECRET
+    if (!apiKey) {
+      return NextResponse.json({ error: "ImgBB not configured" }, { status: 500 })
     }
 
-    const blob = await put(`articles/${Date.now()}-${file.name}`, file, { access: "public" })
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const base64 = buffer.toString("base64")
 
-    return NextResponse.json({ url: blob.url })
+    const imgbbForm = new FormData()
+    imgbbForm.append("image", base64)
+
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+      method: "POST",
+      body: imgbbForm,
+    })
+
+    if (!res.ok) {
+      const errText = await res.text()
+      console.error("ImgBB upload error:", errText)
+      return NextResponse.json({ error: "ImgBB upload failed" }, { status: 500 })
+    }
+
+    const data = await res.json()
+    const url = data.data?.url
+
+    if (!url) {
+      return NextResponse.json({ error: "Invalid ImgBB response" }, { status: 500 })
+    }
+
+    return NextResponse.json({ url })
   } catch (err) {
     console.error("Upload error:", err)
     return NextResponse.json({ error: "Upload failed" }, { status: 500 })
