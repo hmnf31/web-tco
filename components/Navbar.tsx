@@ -9,6 +9,7 @@ const navLinks = [
   { href: "/", label: "Beranda" },
   { href: "/divisi", label: "Divisi" },
   { href: "/arena-training/play", label: "Arena Training", icon: Brain },
+  { href: "/liga", label: "Liga" },
   { href: "/artikel", label: "Artikel" },
   { href: "/pengumuman", label: "Pengumuman" },
   { href: "/register", label: "Daftar Member" },

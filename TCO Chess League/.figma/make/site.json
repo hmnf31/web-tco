@@ -1,0 +1,11 @@
+{
+  "title": "TCO Chess League",
+  "description": "Join the TCO Chess League to compete in a structured, round-robin format across four divisions, tracking progress and rankings while adhering to league regulations.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
