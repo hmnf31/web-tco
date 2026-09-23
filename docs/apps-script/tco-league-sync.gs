@@ -30,7 +30,7 @@
  */
 
 var LIGA_HEADERS = {
-  PLAYERS: ["id", "name", "username", "league", "elo", "wo_count", "status"],
+  PLAYERS: ["id", "name", "username", "league", "elo", "elo_avg", "pp", "wo_count", "status"],
   SCHEDULES: ["id", "league", "round", "player1_id", "player2_id", "date", "time", "status"],
   RESULTS: ["id", "schedule_id", "score1", "score2", "pgn"],
   SEASON: ["season"]
@@ -158,7 +158,7 @@ function pullFromWebsite() {
   var body = callJson_("/api/liga");
   var data = body.data || body;
   var players = (data.players || []).map(function (p) {
-    return { id: p.id, name: p.name, username: p.username, league: p.league, elo: p.elo, wo_count: p.wo_count || 0, status: p.status };
+    return { id: p.id, name: p.name, username: p.username, league: p.league, elo: p.elo, elo_avg: p.elo_avg || 0, pp: p.pp || "", wo_count: p.wo_count || 0, status: p.status };
   });
   var schedules = (data.schedules || []).map(function (s) {
     return { id: s.id, league: s.league, round: s.round, player1_id: s.player1_id, player2_id: s.player2_id, date: s.date || "", time: s.time || "", status: s.status };
