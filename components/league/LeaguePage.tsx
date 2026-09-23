@@ -13,10 +13,10 @@ function Logo({ color }: { color: string }) {
   )
 }
 
-function Av({ name, color, size = 31 }: { name: string; color: string; size?: number }) {
+function Av({ name, color, size = 31, pp }: { name: string; color: string; size?: number; pp?: string }) {
   return (
     <span className="avatar" style={{ borderColor: color, width: size, height: size, fontSize: size < 30 ? 8 : 9 }}>
-      {name.split(" ").map(x => x[0]).slice(0, 2).join("")}
+      {pp ? <img src={pp} alt="" /> : name.split(" ").map(x => x[0]).slice(0, 2).join("")}
     </span>
   )
 }
@@ -243,7 +243,7 @@ export default function LeaguePage() {
                 {standings.map((p, i) => (
                   <div key={p.id} className={`standing-row ${i < 2 ? "promotion" : i >= standings.length - 2 ? "relegation" : ""}`}>
                     <span className="position">{i + 1}{i < 2 ? " ↑" : i >= standings.length - 2 ? " ↓" : ""}</span>
-                    <span className="player"><Av name={p.name} color={cfg.color} /><b>{p.name}</b><small>@{p.username}{p.wo_count > 0 ? ` · WO×${p.wo_count}` : ""}{p.status === "disqualified" ? " · DIDISKUALIFIKASI" : ""}</small></span>
+                    <span className="player"><Av name={p.name} color={cfg.color} pp={p.pp} /><b>{p.name}</b><small>@{p.username}{p.elo_avg > 0 ? ` · AVG ${p.elo_avg}` : ""}{p.wo_count > 0 ? ` · WO×${p.wo_count}` : ""}{p.status === "disqualified" ? " · DIDISKUALIFIKASI" : ""}</small></span>
                     <span>{p.elo}</span><span>{p.mp}</span><span>{p.w}</span><span>{p.d}</span><span>{p.l}</span>
                     <strong>{p.pts.toFixed(1)}</strong>
                   </div>
@@ -266,9 +266,9 @@ export default function LeaguePage() {
                         <b>{s.status === "live" ? "🔴 LIVE THIS WEEK" : "COMING UP"}</b>
                       </div>
                       <div className="versus">
-                        <div><Av name={p1?.name || "?"} color={cfg.color} /><strong>{p1?.name || "?"}</strong><small>{p1?.elo} ELO</small></div>
+                        <div><Av name={p1?.name || "?"} color={cfg.color} pp={p1?.pp} /><strong>{p1?.name || "?"}</strong><small>{p1?.elo} ELO</small></div>
                         <em>VS</em>
-                        <div><Av name={p2?.name || "?"} color={cfg.color} /><strong>{p2?.name || "?"}</strong><small>{p2?.elo} ELO</small></div>
+                        <div><Av name={p2?.name || "?"} color={cfg.color} pp={p2?.pp} /><strong>{p2?.name || "?"}</strong><small>{p2?.elo} ELO</small></div>
                       </div>
                     </article>
                   )

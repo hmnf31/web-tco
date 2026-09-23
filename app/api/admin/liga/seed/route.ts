@@ -83,7 +83,7 @@ export async function POST(request: Request) {
   }
 
   const players: Player[] = PLAYER_DATA.map(([id, name, username, league, elo]) => ({
-    id, name, username, league: league as Player["league"], elo, wo_count: 0, status: "active",
+    id, name, username, league: league as Player["league"], elo, elo_avg: 0, pp: "", wo_count: 0, status: "active",
   }))
 
   const schedules: Schedule[] = SCHEDULE_DATA.map(([id, league, round, p1, p2, date, time, status]) => ({

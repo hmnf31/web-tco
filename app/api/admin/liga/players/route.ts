@@ -10,6 +10,8 @@ function sanitizePlayer(body: any): Partial<Player> {
     username: String(body?.username || "").trim(),
     league,
     elo: Math.max(0, Math.round(Number(body?.elo || 1000))),
+    elo_avg: Math.max(0, Math.round(Number(body?.elo_avg || 0))),
+    pp: String(body?.pp || "").trim().slice(0, 500),
     wo_count: Math.max(0, Math.round(Number(body?.wo_count || 0))),
     status: body?.status === "disqualified" ? "disqualified" : "active",
   }

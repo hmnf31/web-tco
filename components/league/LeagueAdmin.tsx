@@ -35,10 +35,10 @@ function Logo() {
   )
 }
 
-function Av({ name, color, size = 31 }: { name: string; color: string; size?: number }) {
+function Av({ name, color, size = 31, pp }: { name: string; color: string; size?: number; pp?: string }) {
   return (
     <span className="avatar" style={{ borderColor: color, width: size, height: size, fontSize: size < 30 ? 8 : 9 }}>
-      {name.split(" ").map(x => x[0]).slice(0, 2).join("")}
+      {pp ? <img src={pp} alt="" /> : name.split(" ").map(x => x[0]).slice(0, 2).join("")}
     </span>
   )
 }
@@ -57,30 +57,59 @@ function AdminPlayers({
   token: string
   onSeeded: () => void
 }) {
-  const [form, setForm] = useState({ name: "", username: "", league: "Liga 1" as League, elo: "" })
+  const [form, setForm] = useState({ name: "", username: "", league: "Liga 1" as League, elo: "", eloAvg: "", pp: "" })
   const [editId, setEditId] = useState<string | null>(null)
   const [fetching, setFetching] = useState(false)
   const [fetchErr, setFetchErr] = useState("")
   const [filter, setFilter] = useState<League | "">("")
   const [saving, setSaving] = useState(false)
   const [seeding, setSeeding] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   const displayed = filter ? players.filter(p => p.league === filter) : players
 
   const fetchChesscom = async () => {
-    if (!form.username.trim()) return
+    const user = form.username.trim()
+    if (!user) return
     setFetching(true); setFetchErr("")
     try {
-      const res = await fetch(`https://api.chess.com/pub/player/${form.username.trim()}/stats`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      const elo = data.chess_blitz?.last?.rating || data.chess_rapid?.last?.rating || 0
+      const [statsRes, profRes] = await Promise.all([
+        fetch(`https://api.chess.com/pub/player/${encodeURIComponent(user)}/stats`),
+        fetch(`https://api.chess.com/pub/player/${encodeURIComponent(user)}`),
+      ])
+      if (!statsRes.ok) throw new Error()
+      const stats = await statsRes.json()
+      const prof = await profRes.json().catch(() => ({}))
+      const modes = ["chess_bullet", "chess_blitz", "chess_rapid", "chess_daily"]
+      const elo = stats.chess_blitz?.last?.rating || stats.chess_rapid?.last?.rating || stats.chess_bullet?.last?.rating || 0
+      const ratings = modes.map((m) => Number(stats[m]?.last?.rating) || 0).filter(r => r > 0)
+      const eloAvg = ratings.length ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length) : 0
       if (!elo) throw new Error()
-      setForm(f => ({ ...f, elo: String(elo) }))
+      const pp = typeof prof.avatar === "string" ? prof.avatar : ""
+      setForm(f => ({ ...f, elo: String(elo), eloAvg: eloAvg ? String(eloAvg) : "", pp }))
     } catch {
-      setFetchErr("Gagal ambil data. Isi ELO secara manual.")
+      setFetchErr("Gagal ambil data dari Chess.com. Isi ELO secara manual.")
     } finally {
       setFetching(false)
+    }
+  }
+
+  const syncAll = async () => {
+    const withUser = players.filter(p => p.username.trim())
+    if (!withUser.length) { alert("Tidak ada peserta dengan username Chess.com."); return }
+    if (!window.confirm(`Update ELO, rata-rata, dan avatar dari Chess.com untuk ${withUser.length} peserta?`)) return
+    setSyncing(true)
+    try {
+      const res = await apiCall("/api/admin/liga/sync-chesscom", token, { method: "POST", body: {} })
+      if (Array.isArray(res.players)) setPlayers(res.players)
+      const fail = Array.isArray(res.failed) && res.failed.length > 0
+        ? `\nGagal (${res.failed.length}): ${res.failed.map((f: { username: string }) => f.username || "?").join(", ")}`
+        : ""
+      alert(`✓ ${res.updated} peserta ter-update dari Chess.com.${fail}`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal sync Chess.com")
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -88,16 +117,16 @@ function AdminPlayers({
     e.preventDefault()
     setSaving(true)
     try {
-      const body = { id: editId || undefined, name: form.name, username: form.username, league: form.league, elo: Number(form.elo) }
+      const body = { id: editId || undefined, name: form.name, username: form.username, league: form.league, elo: Number(form.elo), elo_avg: Number(form.eloAvg) || 0, pp: form.pp }
       await apiCall("/api/admin/liga/players", token, { method: "POST", body })
       if (editId) {
-        setPlayers(prev => prev.map(p => p.id === editId ? { ...p, name: body.name, username: body.username, league: body.league, elo: body.elo } : p))
+        setPlayers(prev => prev.map(p => p.id === editId ? { ...p, name: body.name, username: body.username, league: body.league, elo: body.elo, elo_avg: body.elo_avg, pp: body.pp } : p))
         setEditId(null)
       } else {
         const res = await apiCall("/api/admin/liga/players", token)
         if (Array.isArray(res.data)) setPlayers(res.data)
       }
-      setForm({ name: "", username: "", league: "Liga 1", elo: "" }); setFetchErr("")
+      setForm({ name: "", username: "", league: "Liga 1", elo: "", eloAvg: "", pp: "" }); setFetchErr("")
     } catch (err) {
       setFetchErr(err instanceof Error ? err.message : "Gagal simpan")
     } finally {
@@ -107,7 +136,7 @@ function AdminPlayers({
 
   const startEdit = (p: Player) => {
     setEditId(p.id)
-    setForm({ name: p.name, username: p.username, league: p.league, elo: String(p.elo) })
+    setForm({ name: p.name, username: p.username, league: p.league, elo: String(p.elo), eloAvg: p.elo_avg > 0 ? String(p.elo_avg) : "", pp: p.pp || "" })
   }
 
   const del = async (id: string) => {
@@ -152,6 +181,14 @@ function AdminPlayers({
         <label className="ac-label">Blitz ELO
           <input required type="number" className="ac-input" value={form.elo} onChange={e => setForm(f => ({ ...f, elo: e.target.value }))} placeholder="Contoh: 1500" />
         </label>
+        <label className="ac-label">Rata-rata ELO (bullet/blitz/rapid/daily)
+          <input type="number" className="ac-input" value={form.eloAvg} onChange={e => setForm(f => ({ ...f, eloAvg: e.target.value }))} placeholder="Otomatis terisi dari Fetch" />
+        </label>
+        {form.pp && (
+          <label className="ac-label">Avatar Chess.com
+            <img src={form.pp} alt="pp" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", marginTop: 6, border: `1px solid ${LC[form.league].color}` }} />
+          </label>
+        )}
         <label className="ac-label">Divisi
           <select className="ac-input" value={form.league} onChange={e => setForm(f => ({ ...f, league: e.target.value as League }))}>
             {LEAGUES.map(l => <option key={l}>{l}</option>)}
@@ -161,7 +198,7 @@ function AdminPlayers({
           <button className="primary-btn" type="submit" style={{ flex: 1 }} disabled={saving}>
             {saving ? "Menyimpan…" : editId ? "Simpan Perubahan" : "+ Tambah ke Liga"}
           </button>
-          {editId && <button type="button" className="outline-btn" onClick={() => { setEditId(null); setForm({ name: "", username: "", league: "Liga 1", elo: "" }) }}>Batal</button>}
+          {editId && <button type="button" className="outline-btn" onClick={() => { setEditId(null); setForm({ name: "", username: "", league: "Liga 1", elo: "", eloAvg: "", pp: "" }) }}>Batal</button>}
         </div>
       </form>
 
@@ -173,6 +210,9 @@ function AdminPlayers({
               <option value="">Semua Liga</option>
               {LEAGUES.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
+            <button type="button" className="fetch-btn" onClick={syncAll} disabled={syncing}>
+              {syncing ? "···" : "⟳ Sync Chess.com"}
+            </button>
           </div>
         </div>
         {players.length === 0 && (
@@ -186,10 +226,10 @@ function AdminPlayers({
         <div className="player-list-body">
           {displayed.map(p => (
             <div key={p.id} className="pli">
-              <Av name={p.name} color={LC[p.league].color} />
+              <Av name={p.name} color={LC[p.league].color} pp={p.pp} />
               <div className="pli-info">
                 <b>{p.name}</b>
-                <small>@{p.username} · {p.elo} ELO · <span style={{ color: LC[p.league].color }}>{p.league}</span>
+                <small>@{p.username} · {p.elo} ELO{p.elo_avg > 0 ? ` · AVG ${p.elo_avg}` : ""} · <span style={{ color: LC[p.league].color }}>{p.league}</span>
                   {p.wo_count > 0 && <span className="wo-badge"> WO×{p.wo_count}</span>}
                   {p.status === "disqualified" && <span className="wo-badge" style={{ color: "#ff6b7a", borderColor: "#ff6b7a44" }}>DISKUALIFIKASI</span>}
                 </small>
@@ -557,12 +597,12 @@ function AdminScore({
           <h3 className="ac-title">Update Skor & PGN</h3>
           <div className="match-preview">
             <div className="mp-player">
-              <Av name={getPlayer(sel.player1_id)?.name || "?"} color={LC[filterL].color} size={36} />
+              <Av name={getPlayer(sel.player1_id)?.name || "?"} color={LC[filterL].color} size={36} pp={getPlayer(sel.player1_id)?.pp} />
               <div><b>{getPlayer(sel.player1_id)?.name}</b><small>Player 1</small></div>
             </div>
             <div className="mp-vs">VS</div>
             <div className="mp-player">
-              <Av name={getPlayer(sel.player2_id)?.name || "?"} color={LC[filterL].color} size={36} />
+              <Av name={getPlayer(sel.player2_id)?.name || "?"} color={LC[filterL].color} size={36} pp={getPlayer(sel.player2_id)?.pp} />
               <div><b>{getPlayer(sel.player2_id)?.name}</b><small>Player 2</small></div>
             </div>
           </div>

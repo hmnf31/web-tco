@@ -6,6 +6,8 @@ export interface Player {
   username: string
   league: League
   elo: number
+  elo_avg: number
+  pp: string
   wo_count: number
   status: "active" | "disqualified"
 }

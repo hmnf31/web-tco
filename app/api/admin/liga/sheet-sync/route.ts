@@ -53,6 +53,8 @@ export async function POST(request: Request) {
       username: String(r.username || ""),
       league: ["Liga 1", "Liga 2", "Liga 3", "Liga 4"].includes(r.league) ? r.league : "Liga 1",
       elo: Math.max(0, Math.round(Number(r.elo || 1000))),
+      elo_avg: Math.max(0, Math.round(Number(r.elo_avg || 0))),
+      pp: String(r.pp || "").trim().slice(0, 500),
       wo_count: Math.max(0, Math.round(Number(r.wo_count || 0))),
       status: r.status === "disqualified" ? "disqualified" : "active",
     }))
