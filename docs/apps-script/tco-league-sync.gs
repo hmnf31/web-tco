@@ -177,6 +177,36 @@ function doPost(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// ── AUTO-SYNC (time-based trigger, tanpa klik menu) ─────────────────────────────
+// Jalankan ENABLE_AUTO_SYNC sekali dari Script Editor → otomatis selamanya
+// (trigger Apps Script setiap 5 menit, gratis, tidak tergantung plan Vercel Cron).
+function ENABLE_AUTO_SYNC() {
+  DELETE_AUTO_SYNC();
+  ScriptApp.newTrigger("autoSync")
+    .timeBased().everyMinutes(5).create();
+  return "Auto-sync aktif: trigger tiap 5 menit.";
+}
+
+function DELETE_AUTO_SYNC() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === "autoSync") ScriptApp.deleteTrigger(t);
+  });
+  return "Semua trigger autoSync dihapus.";
+}
+
+function autoSync() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet() ||
+    SpreadsheetApp.openById(props_()["SHEET_ID"] || "");
+  if (!ss) return logWarn_("autoSync: tidak ada spreadsheet aktif & SHEET_ID kosong.");
+  const n = pullFromWebsite(ss); // Website → Spreadsheet
+  return "autoSync selesai: " + n + " player ditulis.";
+}
+
+function logWarn_(msg) {
+  console.warn(msg);
+  return msg;
+}
+
 function headers_(tab) {
   const map = {
     PLAYERS: ["id", "name", "username", "league", "elo", "elo_avg", "pp", "wo_count", "status"],
