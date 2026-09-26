@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
+import { toJpeg } from "html-to-image"
 import { computeStandings, LEAGUES, LC, type GameResult, type League, type Player, type Schedule } from "@/lib/league"
 import LeagueAnalysisModal from "./LeagueAnalysisModal"
 
@@ -18,6 +19,32 @@ function Av({ name, color, size = 31, pp }: { name: string; color: string; size?
     <span className="avatar" style={{ borderColor: color, width: size, height: size, fontSize: size < 30 ? 8 : 9 }}>
       {pp ? <img src={pp} alt="" /> : name.split(" ").map(x => x[0]).slice(0, 2).join("")}
     </span>
+  )
+}
+
+function PlayerStatsModal({ player, color, onClose }: { player: Player; color: string; onClose: () => void }) {
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <section className="player-stats-modal" onClick={e => e.stopPropagation()} style={{ "--league": color } as React.CSSProperties}>
+        <button className="close" onClick={onClose} aria-label="Tutup statistik pemain">×</button>
+        <div className="player-stats-head">
+          <Av name={player.name} color={color} size={76} pp={player.pp} />
+          <div>
+            <p className="eyebrow" style={{ color }}>PLAYER PROFILE</p>
+            <h2>{player.name}</h2>
+            <button className="player-stats-username" onClick={() => window.open(`https://www.chess.com/member/${encodeURIComponent(player.username)}`, "_blank", "noopener,noreferrer")}>@{player.username || "-"} ↗</button>
+          </div>
+        </div>
+        <div className="player-stats-grid">
+          <div><span>ID</span><b>{player.id}</b></div>
+          <div><span>DIVISI</span><b>{player.league}</b></div>
+          <div><span>BLITZ CURRENT</span><b>{player.elo || "-"}</b></div>
+          <div><span>BLITZ AVG</span><b>{player.elo_avg || "-"}</b></div>
+          <div><span>PEAK BLITZ</span><b>{player.peak_blitz || "-"}</b></div>
+          <div><span>STATUS</span><b>{player.status === "disqualified" ? "DIDISKUALIFIKASI" : "AKTIF"}</b></div>
+        </div>
+      </section>
+    </div>
   )
 }
 
@@ -51,6 +78,8 @@ export default function LeaguePage() {
   const [leagueTab, setLeagueTab] = useState<"standing" | "coming" | "results">("standing")
   const [view, setView] = useState<"league" | "rules">("league")
   const [analysis, setAnalysis] = useState<{ result: GameResult; schedule: Schedule } | null>(null)
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
+  const panelRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -79,15 +108,34 @@ export default function LeaguePage() {
     () => computeStandings(leaguePlayers, leagueSchedules, results),
     [leaguePlayers, leagueSchedules, results]
   )
-  const comingUp = useMemo(
+  // Jadwal yang benar-benar bisa ditampilkan: kedua pemain + tanggal terisi.
+  const isFilled = (s: Schedule) =>
+    Boolean(s.player1_id && s.player2_id && s.date) &&
+    players.some(p => p.id === s.player1_id) && players.some(p => p.id === s.player2_id)
+  // Semua match yang belum selesai, diurutkan ronde -> tanggal.
+  const pendingAll = useMemo(
     () => leagueSchedules
-      .filter(s => s.status === "upcoming" || s.status === "live")
+      .filter(s => isFilled(s) && (s.status === "upcoming" || s.status === "live"))
       .sort((a, b) => a.round - b.round || (a.date + a.time).localeCompare(b.date + b.time)),
-    [leagueSchedules]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [leagueSchedules, players]
+  )
+  // Ronde aktif = ronde TERDEKAT yang belum selesai (ronde 1 dulu, dst).
+  const activeRound = pendingAll.length ? pendingAll[0].round : null
+  // Coming Up hanya ronde aktif, bukan semua ronde yang sudah di-generate.
+  const comingUp = useMemo(
+    () => (activeRound === null ? [] : pendingAll.filter(s => s.round === activeRound)),
+    [pendingAll, activeRound]
+  )
+  // Ronde berikutnya yang sengaja disembunyikan (info ringan di UI).
+  const laterRounds = useMemo(
+    () => [...new Set(pendingAll.filter(s => s.round !== activeRound).map(s => s.round))].sort((a, b) => a - b),
+    [pendingAll, activeRound]
   )
   const completed = useMemo(
-    () => leagueSchedules.filter(s => s.status === "completed").sort((a, b) => b.date.localeCompare(a.date)),
-    [leagueSchedules]
+    () => leagueSchedules.filter(s => s.status === "completed" && isFilled(s)).sort((a, b) => b.date.localeCompare(a.date)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [leagueSchedules, players]
   )
 
   const getPlayer = (id: string) => players.find(p => p.id === id)
@@ -120,6 +168,25 @@ export default function LeaguePage() {
     URL.revokeObjectURL(a.href)
   }
 
+  const exportPanelJpg = async () => {
+    if (!panelRef.current) return
+    try {
+      const dataUrl = await toJpeg(panelRef.current, {
+        quality: 0.95,
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: "#0c131f",
+        filter: node => !(node instanceof HTMLElement && node.classList.contains("capture-exclude")),
+      })
+      const a = document.createElement("a")
+      a.href = dataUrl
+      a.download = `tco-league-${league.toLowerCase().replace(" ", "-")}-s${season}-${leagueTab}.jpg`
+      a.click()
+    } catch {
+      setError("Gagal membuat capture JPG panel liga")
+    }
+  }
+
   const openAnalysis = (scheduleId: string) => {
     const schedule = schedules.find(s => s.id === scheduleId)
     const result = rMap.get(scheduleId)
@@ -134,10 +201,11 @@ export default function LeaguePage() {
     return () => clearInterval(t)
   }, [])
   const nextMatch = useMemo(
-    () => schedules
-      .filter(s => s.status === "upcoming" || s.status === "live")
-      .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))[0],
-    [schedules]
+    () => leagueSchedules
+      .filter(s => isFilled(s) && (s.status === "upcoming" || s.status === "live"))
+      .sort((a, b) => a.round - b.round || (a.date + a.time).localeCompare(b.date + b.time))[0],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [leagueSchedules, players]
   )
   const target = nextMatch?.date
     ? new Date(`${nextMatch.date}T${nextMatch.time || "19:00"}`).getTime()
@@ -217,16 +285,16 @@ export default function LeaguePage() {
             ))}
           </section>
 
-          <section className="league-panel">
+          <section className="league-panel" ref={panelRef}>
             <div className="panel-title">
               <div>
                 <p className="eyebrow" style={{ color: cfg.color }}>{cfg.label}</p>
                 <h2>TCO {league.toUpperCase()}</h2>
                 <span>{cfg.level} · ROUND ROBIN · {leaguePlayers.length} PLAYER</span>
               </div>
-              <div className="export-actions">
+              <div className="export-actions capture-exclude">
                 <button onClick={() => exportCsv(leagueTab)}>⇩ EXPORT CSV</button>
-                <button onClick={() => window.print()}>▣ EXPORT JPG</button>
+                <button onClick={exportPanelJpg}>▣ EXPORT JPG</button>
               </div>
             </div>
             <div className="tabs">
@@ -243,7 +311,7 @@ export default function LeaguePage() {
                 {standings.map((p, i) => (
                   <div key={p.id} className={`standing-row ${i < 2 ? "promotion" : i >= standings.length - 2 ? "relegation" : ""}`}>
                     <span className="position">{i + 1}{i < 2 ? " ↑" : i >= standings.length - 2 ? " ↓" : ""}</span>
-                    <span className="player"><Av name={p.name} color={cfg.color} pp={p.pp} /><b>{p.name}</b><small>@{p.username}{p.elo_avg > 0 ? ` · AVG ${p.elo_avg}` : ""}{p.wo_count > 0 ? ` · WO×${p.wo_count}` : ""}{p.status === "disqualified" ? " · DIDISKUALIFIKASI" : ""}</small></span>
+                    <span className="player"><Av name={p.name} color={cfg.color} pp={p.pp} /><b>{p.name}</b><small><button type="button" className="player-username" onClick={() => setSelectedPlayer(p)}>@{p.username || "-"}</button>{p.elo_avg > 0 ? ` · AVG ${p.elo_avg}` : ""}{p.wo_count > 0 ? ` · WO×${p.wo_count}` : ""}{p.status === "disqualified" ? " · DIDISKUALIFIKASI" : ""}</small></span>
                     <span>{p.elo}</span><span>{p.mp}</span><span>{p.w}</span><span>{p.d}</span><span>{p.l}</span>
                     <strong>{p.pts.toFixed(1)}</strong>
                   </div>
@@ -255,6 +323,13 @@ export default function LeaguePage() {
             {leagueTab === "coming" && (
               <section className="match-list">
                 {comingUp.length === 0 && <p className="muted" style={{ padding: 24 }}>Belum ada jadwal coming up di {league}.</p>}
+                {comingUp.length > 0 && (
+                  <p className="muted" style={{ padding: "0 4px 4px" }}>
+                    Ronde {String(activeRound ?? 0).padStart(2, "0")} · {laterRounds.length > 0
+                      ? `Ronde ${laterRounds.map(r => String(r).padStart(2, "0")).join(", ")} ditampilkan setelah ronde ini selesai.`
+                      : "Ronde terakhir yang tersisa."}
+                  </p>
+                )}
                 {comingUp.map(s => {
                   const p1 = getPlayer(s.player1_id)
                   const p2 = getPlayer(s.player2_id)
@@ -266,9 +341,9 @@ export default function LeaguePage() {
                         <b>{s.status === "live" ? "🔴 LIVE THIS WEEK" : "COMING UP"}</b>
                       </div>
                       <div className="versus">
-                        <div><Av name={p1?.name || "?"} color={cfg.color} pp={p1?.pp} /><strong>{p1?.name || "?"}</strong><small>{p1?.elo} ELO</small></div>
+                        <div><Av name={p1?.name || "?"} color={cfg.color} pp={p1?.pp} /><button type="button" className="player-match-name" onClick={() => p1 && setSelectedPlayer(p1)}>{p1?.name || "?"}</button><small>@{p1?.username || "-"} · {p1?.elo} ELO</small></div>
                         <em>VS</em>
-                        <div><Av name={p2?.name || "?"} color={cfg.color} pp={p2?.pp} /><strong>{p2?.name || "?"}</strong><small>{p2?.elo} ELO</small></div>
+                        <div><Av name={p2?.name || "?"} color={cfg.color} pp={p2?.pp} /><button type="button" className="player-match-name" onClick={() => p2 && setSelectedPlayer(p2)}>{p2?.name || "?"}</button><small>@{p2?.username || "-"} · {p2?.elo} ELO</small></div>
                       </div>
                     </article>
                   )
@@ -288,7 +363,7 @@ export default function LeaguePage() {
                     <article key={s.id} className="result-card">
                       <div>
                         <span className="round">ROUND {String(s.round).padStart(2, "0")} · {new Date(s.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>
-                        <h3>{p1?.name} <ScoreTag s1={Number(r.score1)} s2={Number(r.score2)} /> {p2?.name}</h3>
+                        <h3><button type="button" className="player-result-name" onClick={() => p1 && setSelectedPlayer(p1)}>{p1?.name}</button> <ScoreTag s1={Number(r.score1)} s2={Number(r.score2)} /> <button type="button" className="player-result-name" onClick={() => p2 && setSelectedPlayer(p2)}>{p2?.name}</button></h3>
                         <p>Blitz 5+0 · 2 permainan · Rated{r.pgn ? " · PGN tersedia" : ""}</p>
                       </div>
                       <button className="outline-btn" onClick={() => openAnalysis(s.id)}>
@@ -326,6 +401,10 @@ export default function LeaguePage() {
             </article>
           </div>
         </section>
+      )}
+
+      {selectedPlayer && (
+        <PlayerStatsModal player={selectedPlayer} color={cfg.color} onClose={() => setSelectedPlayer(null)} />
       )}
 
       {analysis && (

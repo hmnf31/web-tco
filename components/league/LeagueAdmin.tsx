@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { validateAdmin, type AdminUser } from "@/lib/admin-auth"
+import type { AdminUser } from "@/lib/admin-types"
 import {
   LEAGUES, LC, SCORE_OPTS, computeStandings,
   type GameResult, type League, type Player, type Schedule,
@@ -57,7 +57,7 @@ function AdminPlayers({
   token: string
   onSeeded: () => void
 }) {
-  const [form, setForm] = useState({ name: "", username: "", league: "Liga 1" as League, elo: "", eloAvg: "", pp: "" })
+  const [form, setForm] = useState({ name: "", username: "", league: "Liga 1" as League, elo: "", eloAvg: "", peakBlitz: "", pp: "" })
   const [editId, setEditId] = useState<string | null>(null)
   const [fetching, setFetching] = useState(false)
   const [fetchErr, setFetchErr] = useState("")
@@ -80,13 +80,12 @@ function AdminPlayers({
       if (!statsRes.ok) throw new Error()
       const stats = await statsRes.json()
       const prof = await profRes.json().catch(() => ({}))
-      const modes = ["chess_bullet", "chess_blitz", "chess_rapid", "chess_daily"]
-      const elo = stats.chess_blitz?.last?.rating || stats.chess_rapid?.last?.rating || stats.chess_bullet?.last?.rating || 0
-      const ratings = modes.map((m) => Number(stats[m]?.last?.rating) || 0).filter(r => r > 0)
-      const eloAvg = ratings.length ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length) : 0
+      const elo = Number(stats.chess_blitz?.last?.rating) || 0
+      const peakBlitz = Number(stats.chess_blitz?.best?.rating) || 0
+      const eloAvg = peakBlitz ? Math.round((elo + peakBlitz) / 2) : elo
       if (!elo) throw new Error()
       const pp = typeof prof.avatar === "string" ? prof.avatar : ""
-      setForm(f => ({ ...f, elo: String(elo), eloAvg: eloAvg ? String(eloAvg) : "", pp }))
+      setForm(f => ({ ...f, elo: String(elo), eloAvg: eloAvg ? String(eloAvg) : "", peakBlitz: peakBlitz ? String(peakBlitz) : "", pp }))
     } catch {
       setFetchErr("Gagal ambil data dari Chess.com. Isi ELO secara manual.")
     } finally {
@@ -117,16 +116,16 @@ function AdminPlayers({
     e.preventDefault()
     setSaving(true)
     try {
-      const body = { id: editId || undefined, name: form.name, username: form.username, league: form.league, elo: Number(form.elo), elo_avg: Number(form.eloAvg) || 0, pp: form.pp }
+      const body = { id: editId || undefined, name: form.name, username: form.username, league: form.league, elo: Number(form.elo), elo_avg: Number(form.eloAvg) || 0, peak_blitz: Number(form.peakBlitz) || 0, pp: form.pp }
       await apiCall("/api/admin/liga/players", token, { method: "POST", body })
       if (editId) {
-        setPlayers(prev => prev.map(p => p.id === editId ? { ...p, name: body.name, username: body.username, league: body.league, elo: body.elo, elo_avg: body.elo_avg, pp: body.pp } : p))
+        setPlayers(prev => prev.map(p => p.id === editId ? { ...p, name: body.name, username: body.username, league: body.league, elo: body.elo, elo_avg: body.elo_avg, peak_blitz: body.peak_blitz, pp: body.pp } : p))
         setEditId(null)
       } else {
         const res = await apiCall("/api/admin/liga/players", token)
         if (Array.isArray(res.data)) setPlayers(res.data)
       }
-      setForm({ name: "", username: "", league: "Liga 1", elo: "", eloAvg: "", pp: "" }); setFetchErr("")
+      setForm({ name: "", username: "", league: "Liga 1", elo: "", eloAvg: "", peakBlitz: "", pp: "" }); setFetchErr("")
     } catch (err) {
       setFetchErr(err instanceof Error ? err.message : "Gagal simpan")
     } finally {
@@ -136,7 +135,7 @@ function AdminPlayers({
 
   const startEdit = (p: Player) => {
     setEditId(p.id)
-    setForm({ name: p.name, username: p.username, league: p.league, elo: String(p.elo), eloAvg: p.elo_avg > 0 ? String(p.elo_avg) : "", pp: p.pp || "" })
+    setForm({ name: p.name, username: p.username, league: p.league, elo: String(p.elo), eloAvg: p.elo_avg > 0 ? String(p.elo_avg) : "", peakBlitz: p.peak_blitz ? String(p.peak_blitz) : "", pp: p.pp || "" })
   }
 
   const del = async (id: string) => {
@@ -181,8 +180,11 @@ function AdminPlayers({
         <label className="ac-label">Blitz ELO
           <input required type="number" className="ac-input" value={form.elo} onChange={e => setForm(f => ({ ...f, elo: e.target.value }))} placeholder="Contoh: 1500" />
         </label>
-        <label className="ac-label">Rata-rata ELO (bullet/blitz/rapid/daily)
+        <label className="ac-label">Blitz AVG (current + peak)
           <input type="number" className="ac-input" value={form.eloAvg} onChange={e => setForm(f => ({ ...f, eloAvg: e.target.value }))} placeholder="Otomatis terisi dari Fetch" />
+        </label>
+        <label className="ac-label">Peak Blitz
+          <input type="number" className="ac-input" value={form.peakBlitz} onChange={e => setForm(f => ({ ...f, peakBlitz: e.target.value }))} placeholder="Otomatis terisi dari Fetch" />
         </label>
         {form.pp && (
           <label className="ac-label">Avatar Chess.com
@@ -198,7 +200,7 @@ function AdminPlayers({
           <button className="primary-btn" type="submit" style={{ flex: 1 }} disabled={saving}>
             {saving ? "Menyimpan…" : editId ? "Simpan Perubahan" : "+ Tambah ke Liga"}
           </button>
-          {editId && <button type="button" className="outline-btn" onClick={() => { setEditId(null); setForm({ name: "", username: "", league: "Liga 1", elo: "", eloAvg: "", pp: "" }) }}>Batal</button>}
+          {editId && <button type="button" className="outline-btn" onClick={() => { setEditId(null); setForm({ name: "", username: "", league: "Liga 1", elo: "", eloAvg: "", peakBlitz: "", pp: "" }) }}>Batal</button>}
         </div>
       </form>
 
@@ -468,10 +470,11 @@ function AdminSchedule({
           {displayed.map(s => {
             const p1 = getPlayer(s.player1_id)
             const p2 = getPlayer(s.player2_id)
+            const incomplete = !s.player1_id || !s.player2_id || !s.date
             return (
-              <div key={s.id} className="sli">
+              <div key={s.id} className="sli" style={incomplete ? { opacity: .55, borderLeft: "2px solid #ffb020" } : undefined}>
                 <div className="sli-info">
-                  <div className="sli-round">RND {s.round} · <span style={{ color: statusColor[s.status], fontWeight: 700 }}>{s.status.toUpperCase()}</span></div>
+                  <div className="sli-round">RND {s.round} · <span style={{ color: statusColor[s.status], fontWeight: 700 }}>{s.status.toUpperCase()}</span>{incomplete && <span style={{ color: "#ffb020", fontWeight: 700 }}> · KOSONG (tidak tampil di publik)</span>}</div>
                   <div className="sli-players">{p1?.name || "?"} <em>vs</em> {p2?.name || "?"}</div>
                   <div className="sli-date">{s.date} · {s.time} WIB</div>
                 </div>
@@ -542,14 +545,18 @@ function AdminScore({
       if (!res.success) throw new Error("Gagal simpan skor")
       setResults(prev => [
         ...prev.filter(r => r.schedule_id !== sel.id),
-        { id: existing?.id || `r${Date.now().toString(36)}`, schedule_id: sel.id, score1: opt.s1, score2: opt.s2, pgn: pgn.trim() || undefined },
+        { id: existing?.id || `r${Date.now().toString(36)}`, schedule_id: sel.id, score1: opt.s1, score2: opt.s2, wo_player: opt.wo, pgn: pgn.trim() || undefined },
       ])
       setSchedules(prev => prev.map(s => s.id === sel.id ? { ...s, status: "completed" } : s))
-      if (opt.wo === 1 || opt.wo === 2) {
-        const loserId = opt.wo === 1 ? sel.player1_id : sel.player2_id
-        setPlayers(prev => prev.map(p => p.id === loserId
-          ? { ...p, wo_count: p.wo_count + 1, status: p.wo_count + 1 >= 2 ? "disqualified" : "active" }
-          : p))
+      const previousWo = existing?.wo_player || 0
+      const previousLoser = previousWo === 1 ? sel.player1_id : previousWo === 2 ? sel.player2_id : ""
+      const nextLoser = opt.wo === 1 ? sel.player1_id : opt.wo === 2 ? sel.player2_id : ""
+      if (previousLoser || nextLoser) {
+        setPlayers(prev => prev.map(p => {
+          const delta = (p.id === nextLoser ? 1 : 0) - (p.id === previousLoser ? 1 : 0)
+          const woCount = Math.max(0, p.wo_count + delta)
+          return delta === 0 ? p : { ...p, wo_count: woCount, status: woCount >= 3 ? "disqualified" : "active" }
+        }))
       }
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -786,6 +793,7 @@ export default function LeagueAdmin() {
   const [loginUsername, setLoginUsername] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [loginError, setLoginError] = useState("")
+  const [authToken, setAuthToken] = useState("")
   const [tab, setTab] = useState<AdminTab>("players")
   const [loading, setLoading] = useState(true)
 
@@ -794,7 +802,7 @@ export default function LeagueAdmin() {
   const [results, setResults] = useState<GameResult[]>([])
   const [season, setSeason] = useState("1")
 
-  const token = user ? btoa(`${user.username}:${loginPassword}`) : ""
+  const token = authToken
 
   async function loadData() {
     setLoading(true)
@@ -821,15 +829,26 @@ export default function LeagueAdmin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
-    const found = validateAdmin(loginUsername, loginPassword)
-    if (found) { setUser(found); setLoginError("") }
-    else { setLoginError("Username atau password salah") }
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || "Login gagal")
+      setUser(body.user)
+      setAuthToken(body.token)
+      setLoginError("")
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : "Username atau password salah")
+    }
   }
 
   function handleLogout() {
-    setUser(null); setLoginUsername(""); setLoginPassword("")
+    setUser(null); setAuthToken(""); setLoginUsername(""); setLoginPassword("")
     setPlayers([]); setSchedules([]); setResults([])
   }
 

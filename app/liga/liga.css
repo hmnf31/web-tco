@@ -65,11 +65,17 @@
 .position { font: 700 14px var(--font-oxanium), "Oxanium"; color: #cfdae4; }
 .promotion .position { color: #59f894; }
 .relegation .position { color: #ff6b7a; }
-.player { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: 17px 14px; column-gap: 9px; align-items: center; }
+.player { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: 17px 14px; column-gap: 9px; align-items: center; padding: 8px 13px 8px 9px; border: 1px solid var(--border); border-radius: 60px; background: linear-gradient(90deg, color-mix(in srgb, var(--league) 8%, transparent), rgba(9,16,27,.35)); }
+.short-row .player { border-radius: 16px; }
+.export-jpg-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 34px; height: 24px; border: 1px solid color-mix(in srgb, var(--league) 55%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--league) 14%, transparent); color: var(--league); font: 700 8px var(--font-oxanium), "Oxanium"; letter-spacing: 1px; cursor: pointer; transition: .15s; }
+.export-jpg-btn:hover { background: var(--league); color: #04101c; }
 .player .avatar { grid-row: span 2; }
 .player small { font-size: 9px; color: #6f8499; }
 .standing-row > strong { color: var(--league); font: 700 16px var(--font-oxanium), "Oxanium"; }
-.avatar { display: inline-grid; place-items: center; width: 31px; height: 31px; border: 1px solid; border-radius: 50%; font-size: 9px; font-weight: 800; color: #e9f7ff; background: linear-gradient(135deg, #243852, #080d17); box-shadow: 0 0 12px color-mix(in srgb, var(--league) 30%, transparent); }
+.avatar { display: inline-grid; place-items: center; width: 31px; height: 31px; border: 1px solid; border-radius: 50%; overflow: hidden; font-size: 9px; font-weight: 800; color: #e9f7ff; background: linear-gradient(135deg, #243852, #080d17); box-shadow: 0 0 12px color-mix(in srgb, var(--league) 30%, transparent); flex-shrink: 0; }
+.avatar img { width: 100%; height: 100%; display: block; object-fit: cover; border-radius: 50%; }
+.player-username { padding: 0; border: 0; background: transparent; color: #7fadc8; font: inherit; cursor: pointer; }
+.player-username:hover { color: var(--league); text-decoration: underline; }
 .match-list, .results-list { padding: 22px; }
 .match-card, .result-card { border: 1px solid var(--border); background: #0d1521; margin-bottom: 12px; }
 .match-meta { display: flex; gap: 14px; padding: 10px 15px; border-bottom: 1px solid var(--border); font-size: 9px; letter-spacing: 1px; color: #8496aa; }
@@ -77,6 +83,9 @@
 .versus { display: grid; grid-template-columns: 1fr 65px 1fr; align-items: center; padding: 18px 22px; text-align: center; }
 .versus > div { display: grid; grid-template-columns: 35px 1fr; grid-template-rows: 18px 14px; text-align: left; column-gap: 9px; }
 .versus .avatar { grid-row: span 2; }
+.player-match-name, .player-result-name { padding: 0; border: 0; background: transparent; color: #e5f1fb; font: inherit; cursor: pointer; text-align: left; }
+.player-match-name:hover, .player-result-name:hover { color: var(--league); text-decoration: underline; }
+.player-result-name { font-weight: 600; }
 .versus small { font-size: 9px; color: #718499; }
 .versus em { font: 800 22px var(--font-oxanium), "Oxanium"; color: var(--league); font-style: normal; }
 .result-card { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; }
@@ -84,6 +93,14 @@
 .result-card h3 { font: 600 18px var(--font-oxanium), "Oxanium"; margin: 7px 0; }
 .result-card h3 b { color: var(--league); }
 .result-card p, .muted { margin: 0; color: #7f92a6; font-size: 11px; }
+.player-stats-modal { width: min(560px, 100%); position: relative; padding: 28px; background: #0b1522; border: 1px solid color-mix(in srgb, var(--league) 45%, transparent); box-shadow: 0 0 70px #000b; }
+.player-stats-head { display: flex; align-items: center; gap: 18px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+.player-stats-head h2 { margin: 3px 0 4px; font: 700 27px var(--font-oxanium), "Oxanium"; color: #f5fbff; }
+.player-stats-username { padding: 0; border: 0; background: transparent; color: var(--league); font-size: 12px; cursor: pointer; }
+.player-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 18px; }
+.player-stats-grid > div { min-width: 0; padding: 13px; border: 1px solid var(--border); background: #07101b; }
+.player-stats-grid span { display: block; margin-bottom: 6px; color: #70859b; font-size: 9px; letter-spacing: 1px; }
+.player-stats-grid b { display: block; overflow: hidden; color: #e3eff9; font: 700 15px var(--font-oxanium), "Oxanium"; text-overflow: ellipsis; white-space: nowrap; }
 .rules-page, .admin-page { padding: 65px 28px 75px; }
 .rules-intro { max-width: 600px; }
 .rules-intro h2 { font-size: 58px; line-height: .9; }
@@ -241,6 +258,7 @@
   .format-card > div { border-right: 0; border-bottom: 1px solid var(--border); }
   .admin-heading { align-items: flex-start; gap: 17px; flex-direction: column; }
   .am2 { max-height: 90vh; overflow: auto; }
+  .player-stats-modal { padding: 22px 18px; }
   .am2-body { grid-template-columns: 1fr; }
   .am2-board-col { flex-direction: column; align-items: stretch; }
   .eval-bar { width: 100%; height: 14px; flex-direction: row; align-items: stretch; }
