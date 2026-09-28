@@ -5,7 +5,8 @@ import {
   Search, Download, Shield, Loader2, AlertCircle, LogOut, Plus,
   FileText, Users, Edit3, ExternalLink, CalendarDays, Trash2, Megaphone,
 } from "lucide-react"
-import { validateAdmin, type AdminUser } from "@/lib/admin-auth"
+import { validateAdmin } from "@/lib/admin-auth"
+import type { AdminUser } from "@/lib/admin-types"
 import TiptapEditor from "@/components/editor/TiptapEditor"
 import ImageUpload from "@/components/editor/ImageUpload"
 

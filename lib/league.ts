@@ -7,6 +7,7 @@ export interface Player {
   league: League
   elo: number
   elo_avg: number
+  peak_blitz?: number
   pp: string
   wo_count: number
   status: "active" | "disqualified"
@@ -28,6 +29,7 @@ export interface GameResult {
   schedule_id: string
   score1: number
   score2: number
+  wo_player?: 0 | 1 | 2 | null
   pgn?: string | null
 }
 
