@@ -18,24 +18,20 @@ export default function JadwalCard({ fase, tanggal, judul, deskripsi, icon }: Ja
   const Icon = iconMap[icon]
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all duration-300 hover:border-cyan-400/30 hover:bg-white/[0.06]">
-      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-cyan-400/5 blur-2xl transition-all duration-500 group-hover:bg-cyan-400/10" />
-
-      <div className="relative flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-400">
-          <Icon className="h-6 w-6" />
+    <div className="group relative bg-[#0f0f10] p-7 transition-colors duration-200 hover:bg-[#161718]">
+      <div className="flex items-start gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-white/[0.08] text-[#c4c7c8]">
+          <Icon className="h-5 w-5" />
         </div>
 
         <div className="flex-1">
-          <span className="inline-block rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-400">
-            {fase}
-          </span>
-          <div className="mt-2 flex items-center gap-2 text-sm text-white/50">
-            <CalendarDays className="h-4 w-4" />
+          <span className="mono-label text-[#8e9192]">{fase}</span>
+          <div className="mono-label-sm mt-2 flex items-center gap-2 text-[#444748]">
+            <CalendarDays className="h-3.5 w-3.5" />
             <span>{tanggal}</span>
           </div>
-          <h3 className="mt-1 text-lg font-bold text-white">{judul}</h3>
-          <p className="mt-2 text-sm leading-relaxed text-white/60">{deskripsi}</p>
+          <h3 className="mt-2 font-display text-xl font-semibold uppercase tracking-tight text-white">{judul}</h3>
+          <p className="mt-3 text-sm leading-relaxed text-[#8e9192]">{deskripsi}</p>
         </div>
       </div>
     </div>

@@ -1,49 +1,74 @@
 import Link from "next/link"
-import { Music, MessageCircle, Globe, Castle } from "lucide-react"
 
 const socialLinks = [
-  { href: "https://www.tiktok.com/@tco.chess", label: "TikTok", icon: Music },
-  { href: "https://wa.me/6283878170957", label: "WhatsApp", icon: MessageCircle },
-  { href: "https://youtube.com/@tco.chess", label: "YouTube", icon: Globe },
-  { href: "https://chess.com/club/tco", label: "Chess.com Club", icon: Castle },
+  { href: "https://www.tiktok.com/@tco.chess", label: "TikTok" },
+  { href: "https://wa.me/6283878170957", label: "WhatsApp" },
+  { href: "https://youtube.com/@tco.chess", label: "YouTube" },
+  { href: "https://chess.com/club/tco", label: "Chess.com Club" },
+]
+
+const legalLinks = [
+  { href: "/privacy-policy", label: "Privacy Policy" },
+  { href: "/terms", label: "Terms of Service" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
 ]
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-slate-950">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center gap-8 md:flex-row md:justify-between">
-          <div className="text-center md:text-left">
-            <p className="bg-gradient-to-r from-cyan-400 to-yellow-400 bg-clip-text text-lg font-bold text-transparent">
-              TCO ESPORTS
+    <footer className="border-t border-white/[0.08] bg-[#080808]">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-12">
+          <div className="md:col-span-5">
+            <p className="font-display text-2xl font-semibold uppercase tracking-tight text-white">
+              TCO Esports
             </p>
-            <p className="mt-1 text-sm text-white/50">— #TheGameHasChanged</p>
+            <p className="mono-label-sm mt-3 max-w-xs text-[#8e9192]">
+              — #TheGameHasChanged
+            </p>
           </div>
 
-          <div className="flex items-center gap-4">
-            {socialLinks.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white/50 transition-all hover:border-cyan-400/50 hover:text-cyan-400"
-                aria-label={item.label}
-              >
-                <item.icon className="h-5 w-5" />
-              </Link>
-            ))}
+          <div className="md:col-span-4">
+            <p className="mono-label text-[#444748]">Sosial</p>
+            <ul className="mt-4 space-y-2">
+              {socialLinks.map((item) => (
+                <li key={item.label}>
+                  <Link
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mono-label-sm inline-flex items-center gap-2 text-[#c4c7c8] transition-colors hover:text-white"
+                  >
+                    {item.label}
+                    <span aria-hidden className="text-[#444748]">↗</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="md:col-span-3">
+            <p className="mono-label text-[#444748]">Legal</p>
+            <ul className="mt-4 space-y-2">
+              {legalLinks.map((item) => (
+                <li key={item.label}>
+                  <Link
+                    href={item.href}
+                    className="mono-label-sm text-[#c4c7c8] transition-colors hover:text-white"
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-white/30">
-          <a href="/privacy-policy" className="hover:text-white/50 transition-colors">Privacy Policy</a>
-          <a href="/terms" className="hover:text-white/50 transition-colors">Terms of Service</a>
-          <a href="/about" className="hover:text-white/50 transition-colors">About</a>
-          <a href="/contact" className="hover:text-white/50 transition-colors">Contact</a>
-        </div>
-        <div className="mt-4 border-t border-white/5 pt-4 text-center text-sm text-white/40">
-          &copy; 2026 TCO Esports. All Rights Reserved. Powered by TCO.
+        <div className="mt-14 flex flex-col gap-3 border-t border-white/[0.08] pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="mono-label-sm text-[#8e9192]">
+            © 2026 TCO Esports. All Rights Reserved. Powered by TCO.
+          </p>
+          <p className="mono-label-sm text-[#444748]">#TheGameHasChanged</p>
         </div>
       </div>
     </footer>

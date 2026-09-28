@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Inter, Syne, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { Analytics } from "@vercel/analytics/react"
 import Navbar from "@/components/Navbar"
@@ -11,6 +11,16 @@ import MusicPlayer from "@/components/MusicPlayer"
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+})
+
+const syne = Syne({
+  subsets: ["latin"],
+  variable: "--font-syne",
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
 })
 
 export const metadata: Metadata = {
@@ -29,8 +39,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="id" className={`${inter.variable} h-full antialiased`} data-scroll-behavior="smooth">
-      <body className="min-h-full flex flex-col bg-slate-950 text-white">
+    <html lang="id" className={`${inter.variable} ${syne.variable} ${jetbrainsMono.variable} h-full antialiased`} data-scroll-behavior="smooth">
+      <body className="min-h-full flex flex-col bg-background text-foreground">
         <Navbar />
         <AnnouncementBanner />
         <SiteTour />

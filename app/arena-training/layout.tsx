@@ -24,17 +24,18 @@ const BOARD_CSS = `
   height: 100% !important;
 }
 .board-custom-wrap .cg-board {
-  border-radius: 12px;
-  box-shadow: 0 0 30px rgba(0, 210, 255, 0.1);
+  border-radius: 0;
+  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.16);
 }
 .board-custom-wrap .cg-board square.last-move {
-  background-color: rgba(255, 255, 0, 0.16);
+  background-color: rgba(255, 255, 255, 0.18);
 }
 .board-custom-wrap .cg-board square.selected {
-  background-color: rgba(0, 210, 255, 0.35);
+  background-color: rgba(255, 255, 255, 0.35);
 }
 .board-custom-wrap .cg-board square.check {
-  background: radial-gradient(ellipse at center, rgba(255, 0, 0, 0.6) 0%, rgba(200, 0, 0, 0.3) 40%, transparent 60%);
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.25) 40%, transparent 60%);
 }
 .board-custom-wrap coords {
   font-size: 10px;
@@ -50,17 +51,17 @@ const BOARD_CSS = `
   cursor: pointer;
 }
 .board-custom-wrap .cg-board square.move-dest {
-  background: rgba(0, 210, 255, 0.15);
+  background: rgba(255, 255, 255, 0.14);
 }
 .board-custom-wrap .cg-board square.move-dest:hover {
-  background: rgba(0, 210, 255, 0.3);
+  background: rgba(255, 255, 255, 0.28);
 }
 .board-custom-wrap .cg-board square.premove-dest {
-  background: rgba(0, 210, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
 }
 .board-custom-wrap .cg-board square.move-dest::after,
 .board-custom-wrap .cg-board square.premove-dest::after {
-  background: rgba(0, 210, 255, 0.4);
+  background: rgba(255, 255, 255, 0.35);
 }
 `
 
@@ -78,23 +79,23 @@ export default function ArenaTrainingLayout({ children }: { children: React.Reac
   return (
     <div className="min-h-screen bg-slate-950">
       <style dangerouslySetInnerHTML={{ __html: BOARD_CSS }} />
-      <div className="border-b border-white/5 bg-white/[0.02]">
+      <div className="border-b border-white/[0.08] bg-[#0f0f10]">
         <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2 sm:px-4 lg:px-6">
           <Link
             href="/"
-            className="flex shrink-0 items-center gap-1 text-xs text-white/40 transition-colors hover:text-cyan-400"
+            className="mono-label-sm flex shrink-0 items-center gap-1 text-[#8e9192] transition-colors hover:text-white"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
             Back
           </Link>
-          <span className="text-white/20 shrink-0">|</span>
-          <span className="shrink-0 text-xs font-semibold text-cyan-400">ARENA</span>
+          <span className="text-white/10 shrink-0">|</span>
+          <span className="mono-label-sm shrink-0 text-white">ARENA</span>
           <div className="flex gap-1 overflow-x-auto ml-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {trainingLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-[10px] font-medium text-white/60 transition-all hover:border-cyan-400/30 hover:text-cyan-400"
+                className="mono-label-sm flex shrink-0 items-center gap-1 border border-white/[0.08] px-2.5 py-1 text-[#8e9192] transition-colors hover:border-white/[0.24] hover:text-white"
               >
                 <link.icon className="h-3 w-3" />
                 <span className="hidden sm:inline">{link.label}</span>

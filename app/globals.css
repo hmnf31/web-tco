@@ -1,16 +1,100 @@
 @import "tailwindcss";
 
 :root {
-  --background: #020617;
-  --foreground: #f8fafc;
+  --background: #080808;
+  --foreground: #e5e2e1;
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-strong: rgba(255, 255, 255, 0.24);
+  --surface: #161718;
+  --surface-embedded: #0f0f10;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-tco-blue: #00D2FF;
-  --color-tco-gold: #FFD700;
+  --color-hairline: var(--hairline);
+
+  --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-syne), "Syne", ui-sans-serif, sans-serif;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+
+  --color-tco-blue: #e5e2e1;
+  --color-tco-gold: #8e9192;
+}
+
+/*
+ * Monochrome Editorial Architecture — token remap.
+ * Warna aksen lama (cyan/yellow/blue) diterjemahkan ke palet monokrom,
+ * slate/gray ke strata permukaan karbon. Radius dipaksa 0px (kecuali
+ * rounded-full), bayangan dihilangkan sesuai spesifikasi desain.
+ */
+@theme {
+  /* display + text tiers */
+  --color-cyan-300: #e2e2e1;
+  --color-cyan-400: #ffffff;
+  --color-cyan-500: #c6c6c7;
+  --color-cyan-600: #8e9192;
+  --color-yellow-200: #e5e2e1;
+  --color-yellow-300: #e2e2e1;
+  --color-yellow-400: #8e9192;
+  --color-yellow-500: #6f7273;
+  --color-yellow-600: #444748;
+  --color-blue-300: #e2e2e1;
+  --color-blue-400: #c4c7c8;
+  --color-blue-500: #8e9192;
+  --color-blue-600: #444748;
+  --color-green-400: #c4c7c8;
+  --color-green-500: #8e9192;
+  --color-emerald-400: #c4c7c8;
+  --color-emerald-500: #8e9192;
+  --color-orange-400: #c6c6c7;
+  --color-orange-500: #8e9192;
+
+  /* surface strata */
+  --color-slate-950: #080808;
+  --color-slate-900: #0f0f10;
+  --color-slate-800: #161718;
+  --color-slate-700: #1c1b1b;
+  --color-slate-600: #2a2a2a;
+  --color-slate-500: #444748;
+  --color-slate-400: #8e9192;
+  --color-slate-300: #c4c7c8;
+  --color-slate-200: #e2e2e1;
+  --color-slate-100: #e5e2e1;
+  --color-gray-950: #080808;
+  --color-gray-900: #0f0f10;
+  --color-gray-800: #161718;
+  --color-gray-700: #1c1b1b;
+  --color-gray-600: #2a2a2a;
+  --color-gray-500: #444748;
+  --color-gray-400: #8e9192;
+  --color-gray-300: #c4c7c8;
+  --color-gray-200: #e2e2e1;
+  --color-gray-100: #e5e2e1;
+
+  /* muted error tones (tetap terbaca sebagai state, tanpa chroma terang) */
+  --color-red-400: #ffb4ab;
+  --color-red-500: #ffdad6;
+  --color-red-600: #93000a;
+  --color-red-900: #410002;
+
+  /* rectilinear geometry */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+
+  /* no drop shadows, no chromatic glow */
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-2xl: none;
 }
 
 html {
@@ -20,17 +104,134 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #ffffff;
+  color: #080808;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Editorial index labels: [ 01 // SECTION ] */
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.mono-label-sm {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.display-xl {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.hairline {
+  border: 1px solid var(--hairline);
+}
+
+.hairline-t {
+  border-top: 1px solid var(--hairline);
+}
+
+.hairline-b {
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* Primary CTA: solid white / black type, sharp corners */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: #ffffff;
+  color: #080808;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.875rem 1.75rem;
+  transition: background-color 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: #e2e2e2;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.875rem 1.75rem;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-outline:hover {
+  border-color: #ffffff;
+}
+
+/* Taxonomic pill badge */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  padding: 0.375rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8e9192;
+  background: transparent;
+}
+
+/* Photos: monochrome editorial treatment */
+.photo-mono {
+  filter: grayscale(1) contrast(1.15);
 }
 
 @keyframes glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(0, 210, 255, 0.3); }
-  50% { box-shadow: 0 0 40px rgba(0, 210, 255, 0.6); }
+  0%, 100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16); }
+  50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4); }
 }
 
 @keyframes textGlow {
-  0%, 100% { text-shadow: 0 0 10px rgba(0, 210, 255, 0.5); }
-  50% { text-shadow: 0 0 20px rgba(0, 210, 255, 0.8), 0 0 30px rgba(0, 210, 255, 0.4); }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
 }
 
 .animate-glow {
@@ -60,7 +261,7 @@ body {
   margin-top: 2em;
   margin-bottom: 1em;
   font-weight: 700;
-  color: white;
+  color: #e5e2e1;
 }
 
 .prose ul, .prose ol {

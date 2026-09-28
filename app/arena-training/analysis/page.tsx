@@ -105,29 +105,30 @@ export default function AnalysisPage() {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
       <AdSlot type="leaderboard" className="mb-6" />
 
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.08] pb-5">
+        <div className="flex items-end gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-white">Game Analysis</h1>
-            <p className="text-sm text-white/50">Analisis progresif dengan engine, game report, dan critical moments</p>
+            <span className="mono-label text-[#8e9192]">Arena Training // Tactical Lab</span>
+            <h1 className="display-xl mt-3 text-3xl text-white sm:text-4xl">Game Analysis</h1>
+            <p className="mt-2 text-sm text-[#8e9192]">Analisis progresif dengan engine, game report, dan critical moments</p>
           </div>
-          <span className="flex items-center gap-1 rounded-full bg-cyan-400/10 px-2.5 py-0.5 text-[10px] font-medium text-cyan-400 border border-cyan-400/20">
+          <span className="mono-label mb-1 flex items-center gap-1 border border-white/[0.16] px-2.5 py-1 text-[#c4c7c8]">
             <Zap className="h-3 w-3" /> {ctrl.engineReady ? "Engine Siap" : "Lazy Load"}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-white/30">Mode</span>
-          <div className="flex gap-1 rounded-lg border border-white/10 p-1">
+          <span className="mono-label text-[#444748]">Mode</span>
+          <div className="flex border border-white/[0.08]">
             {MODE_ORDER.map((id) => {
               const profile = MODE_PROFILE[id]
               const active = ctrl.mode === id
               return (
                 <button key={id} onClick={() => ctrl.setMode(id as AnalysisMode)} disabled={ctrl.analyzing}
                   title={profile.summary}
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-50 ${active ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25" : "text-white/40 hover:text-white/60"}`}>
+                  className={`mono-label px-3 py-2 transition-colors disabled:opacity-50 ${active ? "bg-white text-[#080808]" : "text-[#8e9192] hover:text-white"}`}>
                   {profile.label}
-                  <span className="ml-1 text-[9px] opacity-70">d{profile.depth}</span>
+                  <span className="ml-1 opacity-70">d{profile.depth}</span>
                 </button>
               )
             })}
@@ -139,7 +140,7 @@ export default function AnalysisPage() {
         <div className="flex items-center gap-2 mb-3">
           {TABS.map((t) => (
             <button key={t.key} onClick={() => { ctrl.setTab(t.key); if (t.key !== "pgn") ctrl.setPgn("") }}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${ctrl.tab === t.key ? "bg-cyan-400/10 text-cyan-400 border border-cyan-400/30" : "text-white/40 hover:text-white/60 border border-transparent"}`}>
+              className={`mono-label flex items-center gap-1.5 border px-3 py-2 transition-colors ${ctrl.tab === t.key ? "border-white bg-white text-[#080808]" : "border-white/[0.16] text-[#8e9192] hover:border-white hover:text-white"}`}>
               <t.icon className="h-3 w-3" />{t.label}
             </button>
           ))}
@@ -149,9 +150,9 @@ export default function AnalysisPage() {
           <div className="flex gap-2">
             <textarea value={ctrl.pgn} onChange={(e) => ctrl.setPgn(e.target.value)}
               placeholder="Tempel PGN di sini..."
-              className="h-20 flex-1 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs text-white placeholder-white/20 outline-none focus:border-cyan-400/50 font-mono" />
+              className="h-20 flex-1 border border-white/[0.08] bg-[#0f0f10] p-3 font-mono text-xs text-white placeholder-white/20 outline-none focus:border-white" />
             <button onClick={() => ctrl.loadPGN(ctrl.pgn)} disabled={!ctrl.pgn.trim() || ctrl.analyzing}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 disabled:opacity-50">
+              className="btn-primary shrink-0 disabled:opacity-50">
               {ctrl.analyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
               {ctrl.analyzing ? "Menganalisis..." : "Muat Game"}
             </button>
@@ -160,10 +161,10 @@ export default function AnalysisPage() {
           <div className="flex items-center gap-2">
             <input type="text" value={ctrl.username} onChange={(e) => ctrl.setUsername(e.target.value)}
               placeholder={`Masukkan ID ${ctrl.tab === "chesscom" ? "Chess.com" : "Lichess"}...`}
-              className="max-w-sm flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white placeholder-white/20 outline-none focus:border-cyan-400/50" />
+              className="max-w-sm flex-1 border border-white/[0.08] bg-[#0f0f10] px-4 py-2.5 text-sm text-white placeholder-white/20 outline-none focus:border-white" />
             <button onClick={() => (ctrl.tab === "chesscom" ? ctrl.fetchChessCom(ctrl.username) : ctrl.fetchLichess(ctrl.username))}
               disabled={ctrl.loading || !ctrl.username.trim()}
-              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 disabled:opacity-50">
+              className="btn-primary shrink-0 disabled:opacity-50">
               {ctrl.loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
               {ctrl.loading ? "Loading..." : "Cari Game"}
             </button>
@@ -171,13 +172,13 @@ export default function AnalysisPage() {
         )}
 
         {ctrl.error && (
-          <div className="mt-3 flex items-start gap-2 rounded-lg bg-red-400/5 border border-red-400/10 px-3 py-2 text-xs text-red-400">
+          <div className="mt-3 flex items-start gap-2 border border-[#93000a] bg-[#93000a]/20 px-3 py-2 text-xs text-[#ffb4ab]">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span className="whitespace-pre-line">{ctrl.error}</span>
           </div>
         )}
         {ctrl.warning && (
-          <div className="mt-3 flex items-start gap-2 rounded-lg bg-yellow-400/5 border border-yellow-400/10 px-3 py-2 text-xs text-yellow-400">
+          <div className="mt-3 flex items-start gap-2 border border-white/[0.16] bg-[#0f0f10] px-3 py-2 text-xs text-[#c4c7c8]">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span className="whitespace-pre-line">{ctrl.warning}</span>
           </div>

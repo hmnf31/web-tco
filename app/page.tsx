@@ -138,104 +138,115 @@ export default async function Home() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden border-b border-white/5">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(0,210,255,0.08),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(255,215,0,0.05),transparent_50%)]" />
+      <section className="relative overflow-hidden border-b border-white/[0.08]">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
 
-        <div className="relative mx-auto flex max-w-7xl flex-col items-center px-4 pb-20 pt-20 text-center sm:px-6 lg:px-8 lg:pt-32">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/5 px-4 py-1.5 text-sm text-cyan-400">
-            <Shield className="h-4 w-4" />
+        <div className="relative mx-auto flex max-w-7xl flex-col px-4 pb-0 pt-16 sm:px-6 lg:px-8 lg:pt-24">
+          <div className="pill self-start">
+            <Shield className="h-3.5 w-3.5" />
             #TheGameHasChanged
           </div>
 
-          <h1 className="mt-6 max-w-4xl text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl xl:text-7xl">
+          <h1 className="display-xl mt-8 max-w-5xl text-4xl text-white sm:text-6xl lg:text-7xl">
             TCO ESPORTS:{" "}
-            <span className="bg-gradient-to-r from-cyan-400 to-yellow-400 bg-clip-text text-transparent">
+            <span className="text-[#444748] transition-colors duration-500 hover:text-white">
               THE NEXT LEVEL OF DIGITAL COMPETITION
             </span>
           </h1>
 
-          <p className="mt-6 max-w-2xl text-lg text-white/60 sm:text-xl">
-            Rumah bagi para petarung otak dan strategi. Komunitas Catur Online terbesar di Tiktok Indonesia
-          </p>
+          <div className="mt-10 grid grid-cols-1 items-end gap-8 border-t border-white/[0.08] pt-8 lg:grid-cols-12">
+            <p className="max-w-2xl text-lg font-light leading-relaxed text-[#c4c7c8] lg:col-span-7 sm:text-xl">
+              Rumah bagi para petarung otak dan strategi. Komunitas Catur Online terbesar di Tiktok Indonesia
+            </p>
 
-          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
-            <Link
-              href="/register"
-              className="group flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 hover:shadow-xl hover:shadow-cyan-500/30"
-            >
-              DAFTAR MEMBER SEKARANG
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <a
-              href="https://wa.me/6283878170957"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-xl border border-white/10 px-8 py-3.5 text-sm font-semibold text-white/80 transition-all hover:border-cyan-400/30 hover:text-cyan-400"
-            >
-              <MessageCircle className="h-4 w-4" />
-              GABUNG GRUP WA KOMUNITAS
-            </a>
+            <div className="flex flex-col items-start gap-4 sm:flex-row lg:col-span-5 lg:justify-end">
+              <Link href="/register" className="btn-primary">
+                DAFTAR MEMBER SEKARANG
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <a
+                href="https://wa.me/6283878170957"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-outline"
+              >
+                <MessageCircle className="h-4 w-4" />
+                GABUNG GRUP WA KOMUNITAS
+              </a>
+            </div>
           </div>
 
           {/* Stats */}
-          <div className="mt-16 grid grid-cols-2 gap-8 sm:grid-cols-3">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-white sm:text-4xl">500+</div>
-              <div className="mt-1 text-sm text-white/50">Anggota Terdaftar</div>
+          <div className="mt-16 grid grid-cols-1 border border-white/[0.08] bg-[#0f0f10] sm:grid-cols-3">
+            <div className="border-b border-white/[0.08] p-8 sm:border-b-0 sm:border-r">
+              <span className="mono-label block text-[#444748]">[ Stat // 01 ]</span>
+              <div className="mt-3 font-display text-4xl font-semibold tracking-tight text-white">500+</div>
+              <div className="mono-label mt-2 text-[#8e9192]">Anggota Terdaftar</div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-cyan-400 sm:text-4xl">#1</div>
-              <div className="mt-1 text-sm text-white/50">Top Klub Kreatif Indonesia</div>
+            <div className="border-b border-white/[0.08] p-8 sm:border-b-0 sm:border-r">
+              <span className="mono-label block text-[#444748]">[ Stat // 02 ]</span>
+              <div className="mt-3 font-display text-4xl font-semibold tracking-tight text-white">#1</div>
+              <div className="mono-label mt-2 text-[#8e9192]">Top Klub Kreatif Indonesia</div>
             </div>
-            <div className="col-span-2 text-center sm:col-span-1">
-              <div className="text-3xl font-bold text-yellow-400 sm:text-4xl">2</div>
-              <div className="mt-1 text-sm text-white/50">Divisi Kompetitif</div>
+            <div className="p-8">
+              <span className="mono-label block text-[#444748]">[ Stat // 03 ]</span>
+              <div className="mt-3 font-display text-4xl font-semibold tracking-tight text-white">2</div>
+              <div className="mono-label mt-2 text-[#8e9192]">Divisi Kompetitif</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* About Section */}
-      <section className="border-b border-white/5 py-20" id="tentang">
+      <section className="border-b border-white/[0.08] bg-[#080808] py-24" id="tentang">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <h2 className="inline-block rounded-full bg-cyan-400/10 px-4 py-1 text-sm font-semibold text-cyan-400">
-              TENTANG KAMI
-            </h2>
-            <p className="mt-4 text-2xl font-bold text-white sm:text-3xl">
-              Dari TikTok, Untuk Panggung Dunia!
-            </p>
+          <div className="flex items-center justify-between">
+            <span className="mono-label text-[#8e9192]">Tentang Kami</span>
+            <span className="mono-label hidden text-[#444748] sm:block">TCO Esports // Indonesia</span>
           </div>
 
-          <div className="mt-10 grid items-center gap-10 lg:grid-cols-2">
-            <div className="overflow-hidden rounded-2xl border border-white/10">
-              <Image
-                src="https://i.ibb.co/6cWG2NZR/Gemini-Generated-Image-4o0n3p4o0n3p4o0n.png"
-                alt="TCO Esports Main"
-                width={600}
-                height={400}
-                className="h-full w-full object-cover"
-              />
-            </div>
-            <div>
-              <p className="text-base leading-relaxed text-white/60 sm:text-lg">
+          <div className="mt-10 grid items-start gap-12 lg:grid-cols-12">
+            <div className="lg:col-span-7">
+              <h2 className="display-xl text-3xl text-white sm:text-5xl">
+                Dari TikTok, Untuk Panggung Dunia!
+              </h2>
+              <p className="mt-8 max-w-2xl text-base leading-relaxed text-[#c4c7c8] sm:text-lg">
                 TCO (TikTok Chess Online) adalah klub catur online paling aktif di Indonesia yang lahir,
                 tumbuh, dan bergerak bersama ekosistem TikTok. Kami bukan sekadar klub biasa; kami adalah
                 gerakan komunitas yang memanfaatkan teknologi untuk menyatukan ribuan pecinta catur di
                 seluruh penjuru negeri melalui turnamen harian, live streaming interaktif, dan edukasi
                 taktik.
               </p>
-              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-                <p className="text-sm italic text-white/50">
-                  <span className="font-semibold text-yellow-400">Gens Una Sumus</span> — &quot;Kita Adalah
+
+              <div className="mt-8 hairline bg-[#0f0f10] p-6">
+                <p className="mono-label-sm text-[#8e9192]">
+                  <span className="font-medium text-white">Gens Una Sumus</span> — &quot;Kita Adalah
                   Satu Keluarga&quot;
                 </p>
-                <p className="mt-2 text-sm text-white/50">
+                <p className="mt-3 text-sm leading-relaxed text-[#8e9192]">
                   Klub bersifat UMUM dan TERBUKA untuk siapa saja — dari pemain kasual, pejuang rating,
                   hingga Master Catur bergelar resmi. Di sini, semua memiliki hak yang sama untuk
                   berkembang, bertanding, dan berprestasi.
                 </p>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5">
+              <div className="hairline overflow-hidden bg-[#161718]">
+                <Image
+                  src="https://i.ibb.co/6cWG2NZR/Gemini-Generated-Image-4o0n3p4o0n3p4o0n.png"
+                  alt="TCO Esports Main"
+                  width={600}
+                  height={400}
+                  className="h-full w-full object-cover photo-mono"
+                />
               </div>
             </div>
           </div>
@@ -243,46 +254,56 @@ export default async function Home() {
       </section>
 
       {/* Articles / Berita Terbaru */}
-      <section className="border-b border-white/5 py-20">
+      <section className="border-b border-white/[0.08] py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="inline-block rounded-full bg-cyan-400/10 px-4 py-1 text-sm font-semibold text-cyan-400">
-              ARTIKEL TERBARU
-            </h2>
-            <p className="mt-4 text-2xl font-bold text-white sm:text-3xl">Berita & Artikel</p>
-            <p className="mt-2 text-white/50">Simak perjalanan TCO Esports menuju puncak klasemen global</p>
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.08] pb-6">
+            <div>
+              <span className="mono-label text-[#8e9192]">Artikel Terbaru</span>
+              <h2 className="display-xl mt-4 text-3xl text-white sm:text-4xl">Berita &amp; Artikel</h2>
+              <p className="mt-3 text-sm text-[#8e9192]">Simak perjalanan TCO Esports menuju puncak klasemen global</p>
+            </div>
+            <Link
+              href="/artikel"
+              className="mono-label-sm inline-flex items-center gap-2 text-white underline-offset-4 hover:underline"
+            >
+              Lihat Semua <span aria-hidden>-&gt;</span>
+            </Link>
           </div>
 
-            <div className="mt-10 space-y-4">
+            <div className="mt-2">
               {(!latestArticles || latestArticles.length === 0) ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
-                  <Newspaper className="mx-auto h-8 w-8 text-white/20" />
-                  <p className="mt-2 text-sm text-white/40">Belum ada artikel. Pantau terus!</p>
+                <div className="hairline mt-6 bg-[#0f0f10] p-10 text-center">
+                  <Newspaper className="mx-auto h-8 w-8 text-[#444748]" />
+                  <p className="mono-label-sm mt-3 text-[#8e9192]">Belum ada artikel. Pantau terus!</p>
                 </div>
               ) : (
                 latestArticles.map((a, i) => (
-                  <Link key={i} href={`/artikel/${a.slug}`} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition-all hover:border-cyan-400/20 group">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10">
-                      <Newspaper className="h-6 w-6 text-cyan-400" />
+                  <Link
+                    key={i}
+                    href={`/artikel/${a.slug}`}
+                    className="group flex items-center gap-5 border-b border-white/[0.08] px-1 py-5 transition-colors hover:bg-[#161718]"
+                  >
+                    <span className="mono-label hidden w-10 shrink-0 text-[#444748] sm:block">
+                      {String(i + 1).padStart(3, "0")}
+                    </span>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-white/[0.08]">
+                      <Newspaper className="h-5 w-5 text-[#c4c7c8]" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">{a.title}</h3>
-                      <p className="mt-1 text-xs text-white/50">{a.excerpt?.substring(0, 100) || ""}</p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-display text-base font-medium text-white transition-colors">{a.title}</h3>
+                      <p className="mt-1 text-xs text-[#8e9192]">{a.excerpt?.substring(0, 100) || ""}</p>
                     </div>
-                    <div className="hidden sm:block shrink-0 text-right">
-                      <p className="text-xs text-white/40">{formatDate(a.published_at || a.created_at)}</p>
+                    <div className="hidden shrink-0 text-right sm:block">
+                      <p className="mono-label-sm text-[#444748]">{formatDate(a.published_at || a.created_at)}</p>
                     </div>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-white/20 group-hover:text-cyan-400 transition-colors" />
+                    <ArrowRight className="h-4 w-4 shrink-0 text-[#444748] transition-colors group-hover:text-white" />
                   </Link>
                 ))
               )}
             </div>
 
-          <div className="mt-8 text-center">
-            <Link
-              href="/artikel"
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105"
-            >
+          <div className="mt-8">
+            <Link href="/artikel" className="btn-outline">
               Baca Artikel <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -290,17 +311,17 @@ export default async function Home() {
       </section>
 
       {/* Jadwal Kegiatan Section */}
-      <section className="border-b border-white/5 py-20" id="jadwal">
+      <section className="border-b border-white/[0.08] py-24" id="jadwal">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="inline-block rounded-full bg-cyan-400/10 px-4 py-1 text-sm font-semibold text-cyan-400">
-              AGENDA & KEGIATAN AKTIF BULANAN
-            </h2>
-            <p className="mt-4 text-2xl font-bold text-white sm:text-3xl">Our Timeline</p>
-            <p className="mt-2 text-white/50">Aktivitas rutin TCO setiap bulan</p>
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.08] pb-6">
+            <div>
+              <span className="mono-label text-[#8e9192]">Agenda &amp; Kegiatan Aktif Bulanan</span>
+              <h2 className="display-xl mt-4 text-3xl text-white sm:text-4xl">Our Timeline</h2>
+              <p className="mt-3 text-sm text-[#8e9192]">Aktivitas rutin TCO setiap bulan</p>
+            </div>
           </div>
 
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
+          <div className="mt-10 grid gap-px border border-white/[0.08] bg-white/[0.08] md:grid-cols-3">
             {jadwalData.map((item) => (
               <JadwalCard key={item.fase} {...item} />
             ))}
@@ -309,35 +330,36 @@ export default async function Home() {
       </section>
 
       {/* Achievements Section */}
-      <section className="border-b border-white/5 py-20" id="prestasi">
+      <section className="border-b border-white/[0.08] py-24" id="prestasi">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="inline-block rounded-full bg-yellow-400/10 px-4 py-1 text-sm font-semibold text-yellow-400">
-              DINDING PRESTASI
-            </h2>
-            <p className="mt-4 text-2xl font-bold text-white sm:text-3xl">Achievements Shield</p>
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.08] pb-6">
+            <div>
+              <span className="mono-label text-[#8e9192]">Dinding Prestasi</span>
+              <h2 className="display-xl mt-4 text-3xl text-white sm:text-4xl">Achievements Shield</h2>
+            </div>
           </div>
 
-           <div className="mt-10 space-y-3">
+           <div className="mt-8 border-t border-white/[0.08]">
              {[
                 { place: "2", label: "Arena Kings Juni 2026" },
                 { place: "3", label: "Arena Kings Mei 2026" },
                 { place: "4", label: "Arena Kings April 2026" },
                 { place: "5", label: "Arena Kings Maret 2026" },
               ].map((a, i) => (
-               <div
-                 key={i}
-                 className="flex items-center gap-4 rounded-xl border border-yellow-400/20 bg-gradient-to-r from-yellow-400/5 to-transparent px-6 py-4"
-               >
-                 <Trophy className={`h-6 w-6 shrink-0 ${i === 0 ? "text-yellow-400" : "text-white/40"}`} />
-                 <span className="text-sm font-medium text-white/80">
-                   Juara {a.place} — {a.label}
-                 </span>
-               </div>
-             ))}
+              <div
+                key={i}
+                className="flex items-center gap-5 border-b border-white/[0.08] px-1 py-5 transition-colors hover:bg-[#161718]"
+              >
+                <span className="mono-label w-16 shrink-0 text-[#444748]">{String(i + 1).padStart(3, "0")}</span>
+                <Trophy className={`h-5 w-5 shrink-0 ${i === 0 ? "text-white" : "text-[#444748]"}`} />
+                <span className="text-sm text-[#c4c7c8]">
+                  Juara {a.place} — {a.label}
+                </span>
+              </div>
+            ))}
            </div>
 
-          <div className="mt-8 grid gap-6 sm:grid-cols-3">
+          <div className="mt-10 grid gap-px border border-white/[0.08] bg-white/[0.08] sm:grid-cols-3">
             {[
               { icon: Users, label: "Anggota Terdaftar", value: "500+" },
               { icon: TrendingUp, label: "Platform Global", value: "Chess.com" },
@@ -345,11 +367,11 @@ export default async function Home() {
             ].map((item) => (
               <div
                 key={item.label}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center transition-all hover:border-cyan-400/20"
+                className="bg-[#0f0f10] p-7 transition-colors hover:bg-[#161718]"
               >
-                <item.icon className="mx-auto h-8 w-8 text-cyan-400" />
-                <div className="mt-3 text-2xl font-bold text-white">{item.value}</div>
-                <div className="mt-1 text-sm text-white/50">{item.label}</div>
+                <item.icon className="h-6 w-6 text-[#8e9192]" />
+                <div className="mt-5 font-display text-3xl font-semibold tracking-tight text-white">{item.value}</div>
+                <div className="mono-label mt-2 text-[#8e9192]">{item.label}</div>
               </div>
             ))}
           </div>
@@ -357,34 +379,31 @@ export default async function Home() {
       </section>
 
       {/* Divisi Chess Section */}
-      <section className="border-b border-white/5 py-20">
+      <section className="border-b border-white/[0.08] py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid items-center gap-10 lg:grid-cols-2">
-            <div>
-              <h2 className="inline-block rounded-full bg-cyan-400/10 px-4 py-1 text-sm font-semibold text-cyan-400">
-                DIVISI CHESS
-              </h2>
-              <p className="mt-4 text-2xl font-bold text-white sm:text-3xl">
+          <div className="grid items-start gap-12 lg:grid-cols-12">
+            <div className="lg:col-span-7">
+              <span className="mono-label text-[#8e9192]">Divisi Chess</span>
+              <h2 className="display-xl mt-4 text-3xl text-white sm:text-4xl">
                 Kompetisi Catur Online Level Global
-              </p>
-              <p className="mt-4 text-white/60">
+              </h2>
+              <p className="mt-6 max-w-2xl leading-relaxed text-[#c4c7c8]">
                 Divisi Catur TCO berkompetisi di turnamen reguler Arena Kings dan Liga Komunitas Chess.com. 
                 Kami memiliki lebih dari 70 pemain aktif yang siap bertanding di panggung global. 
                 Bergabunglah dan buktikan kemampuan strategi Anda bersama keluarga besar TCO Esports!
               </p>
-              <Link
-                href="/divisi"
-                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105"
-              >
+              <Link href="/divisi" className="btn-outline mt-8">
                 Lihat Divisi Chess <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
-            <div className="flex justify-center">
-              <div className="rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/5 to-transparent p-8 text-center">
-                <Trophy className="mx-auto h-16 w-16 text-yellow-400" />
-                <div className="mt-4 text-4xl font-bold text-white">#2</div>
-                <div className="text-sm text-white/50">Peringkat Global</div>
-                <div className="mt-2 text-xs text-cyan-400">Arena Kings Juni 2026</div>
+            <div className="lg:col-span-5">
+              <div className="hairline bg-[#0f0f10] p-8">
+                <Trophy className="h-10 w-10 text-white" />
+                <div className="mt-6 font-display text-5xl font-bold tracking-tight text-white">#2</div>
+                <div className="mono-label mt-2 text-[#8e9192]">Peringkat Global</div>
+                <div className="mono-label-sm mt-4 border-t border-white/[0.08] pt-4 text-[#444748]">
+                  Arena Kings Juni 2026
+                </div>
               </div>
             </div>
           </div>
@@ -392,23 +411,21 @@ export default async function Home() {
       </section>
 
       {/* Sponsorship Section */}
-      <section className="border-b border-white/5 py-20" id="sponsor">
+      <section className="border-b border-white/[0.08] py-24" id="sponsor">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <h2 className="inline-block rounded-full bg-cyan-400/10 px-4 py-1 text-sm font-semibold text-cyan-400">
-              RUANG KOLABORASI
-            </h2>
-            <p className="mt-4 text-2xl font-bold text-white sm:text-3xl">
+          <div className="border-b border-white/[0.08] pb-6">
+            <span className="mono-label text-[#8e9192]">Ruang Kolaborasi</span>
+            <h2 className="display-xl mt-4 max-w-3xl text-3xl text-white sm:text-4xl">
               Mari Bermitra dengan Komunitas Paling Dinamis!
-            </p>
-            <p className="mt-4 text-white/60">
+            </h2>
+            <p className="mt-6 max-w-3xl leading-relaxed text-[#c4c7c8]">
               Dengan basis massa yang masif, loyal, serta interaksi harian yang sangat tinggi melalui
               platform TikTok, TCO Esports menawarkan visibilitas brand yang unik dan berdampak luas di
-              kalangan generasi muda (Gen-Z & Milenial).
+              kalangan generasi muda (Gen-Z &amp; Milenial).
             </p>
           </div>
 
-          <div className="mt-12 grid gap-6 sm:grid-cols-3">
+          <div className="mt-10 grid gap-px border border-white/[0.08] bg-white/[0.08] sm:grid-cols-3">
             {[
               "Pendanaan hadiah turnamen berkala guna merangsang prestasi pemain",
               "Pembinaan talenta berbakat (atlet catur online dan pemain MLBB)",
@@ -416,34 +433,29 @@ export default async function Home() {
             ].map((text, i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:border-yellow-400/20"
+                className="bg-[#0f0f10] p-7 transition-colors hover:bg-[#161718]"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-400/10 text-yellow-400">
-                  {i + 1}
-                </div>
-                <p className="mt-4 text-sm text-white/60">{text}</p>
+                <div className="mono-label text-[#444748]">{String(i + 1).padStart(3, "0")}</div>
+                <p className="mt-5 text-sm leading-relaxed text-[#c4c7c8]">{text}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-10 text-center">
-            <p className="text-sm text-white/50">
+          <div className="mt-10">
+            <p className="text-sm text-[#8e9192]">
               <Mail className="mr-1 inline h-4 w-4" /> Tertarik Menjadi Bagian dari Sejarah TCO? Hubungi Manajemen TCO Esports untuk proposal kerja sama:
             </p>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
+            <div className="mt-6 flex flex-wrap items-center gap-4">
               <a
                 href="https://wa.me/6283878170957"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-white/80 transition-all hover:border-green-400/30 hover:text-green-400"
+                className="btn-outline"
               >
                 <MessageCircle className="h-4 w-4" />
                 HUBUNGI VIA WHATSAPP : 083878170957
               </a>
-              <a
-                href="mailto:tco.chess@gmail.com"
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105"
-              >
+              <a href="mailto:tco.chess@gmail.com" className="btn-primary">
                 EMAIL MARKETING : tco.chess@gmail.com
               </a>
             </div>
@@ -452,33 +464,31 @@ export default async function Home() {
       </section>
 
       {/* Contact Section */}
-      <section className="py-20" id="kontak">
+      <section className="py-24" id="kontak">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="inline-block rounded-full bg-cyan-400/10 px-4 py-1 text-sm font-semibold text-cyan-400">
-              KONTAK
-            </h2>
-            <p className="mt-4 text-2xl font-bold text-white sm:text-3xl">Ikuti Kami</p>
+          <div className="border-b border-white/[0.08] pb-6">
+            <span className="mono-label text-[#8e9192]">Kontak</span>
+            <h2 className="display-xl mt-4 text-3xl text-white sm:text-4xl">Ikuti Kami</h2>
           </div>
 
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
+          <div className="mt-8 flex flex-wrap items-center gap-4">
             <a
               href="https://www.tiktok.com/@tco.chess"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-xl border border-white/10 px-6 py-3 transition-all hover:border-cyan-400/30 hover:text-cyan-400"
+              className="btn-outline"
             >
-              <Music className="h-5 w-5" />
-              <span className="text-sm font-medium">@tco.chess</span>
+              <Music className="h-4 w-4" />
+              @tco.chess
             </a>
             <a
               href="https://wa.me/6283878170957"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-xl border border-white/10 px-6 py-3 transition-all hover:border-green-400/30 hover:text-green-400"
+              className="btn-outline"
             >
-              <MessageCircle className="h-5 w-5" />
-              <span className="text-sm font-medium">WhatsApp Komunitas</span>
+              <MessageCircle className="h-4 w-4" />
+              WhatsApp Komunitas
             </a>
           </div>
         </div>

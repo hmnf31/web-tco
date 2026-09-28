@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Swords, Castle, ChevronRight, ExternalLink, Clock, X, Globe, Users, Trophy, Loader2 } from "lucide-react"
+import { DEFAULT_DIVISION_PLAYERS, type DivisionPlayer } from "@/lib/divisions"
 
 const chessPlayers = [
   { username: "45had0w" },
@@ -106,6 +107,7 @@ type ClubInfo = {
 
 export default function DivisiPage() {
   const [tab, setTab] = useState<"chess" | "mlbb">("chess")
+  const [divisionPlayers, setDivisionPlayers] = useState<DivisionPlayer[]>(DEFAULT_DIVISION_PLAYERS)
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerProfile | null>(null)
   const [loadingPlayer, setLoadingPlayer] = useState(false)
   const [clubInfo, setClubInfo] = useState<ClubInfo | null>(null)
@@ -122,6 +124,16 @@ export default function DivisiPage() {
     }
     fetchClub()
   }, [])
+
+  useEffect(() => {
+    fetch("/api/divisions")
+      .then(res => res.json())
+      .then(body => { if (Array.isArray(body.data) && body.data.length) setDivisionPlayers(body.data) })
+      .catch(() => {})
+  }, [])
+
+  const displayChessPlayers = divisionPlayers.filter(player => player.division === "Chess")
+  const displayMlbbPlayers = divisionPlayers.filter(player => player.division === "MLBB")
 
   async function openPlayerPopup(username: string) {
     setLoadingPlayer(true)
@@ -150,67 +162,72 @@ export default function DivisiPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-white sm:text-4xl">Divisi & Turnamen</h1>
-        <p className="mt-2 text-white/50">Jelajahi dua lini kompetitif TCO Esports</p>
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <span className="mono-label text-[#8e9192]">Divisi &amp; Turnamen</span>
+          <h1 className="display-xl mt-5 text-4xl text-white sm:text-6xl">
+            Divisi &amp;<br />Turnamen
+          </h1>
+        </div>
+        <p className="max-w-md text-sm leading-relaxed text-[#c4c7c8] lg:text-right">
+          Jelajahi dua lini kompetitif TCO Esports
+        </p>
       </div>
 
       {/* Tabs */}
-      <div className="mt-10 flex justify-center">
-        <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.03] p-1">
-          <button
-            onClick={() => setTab("chess")}
-            className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium transition-all ${
-              tab === "chess"
-                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25"
-                : "text-white/50 hover:text-white/80"
-            }`}
-          >
-            <Castle className="h-4 w-4" />
-            Chess Division
-          </button>
-          <button
-            onClick={() => setTab("mlbb")}
-            className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium transition-all ${
-              tab === "mlbb"
-                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25"
-                : "text-white/50 hover:text-white/80"
-            }`}
-          >
-            <Swords className="h-4 w-4" />
-            MLBB Division
-          </button>
-        </div>
+      <div className="mt-12 flex flex-wrap items-center gap-3 border-b border-white/[0.08] pb-6">
+        <button
+          onClick={() => setTab("chess")}
+          className={`mono-label flex items-center gap-2 border px-5 py-3 transition-colors ${
+            tab === "chess"
+              ? "border-white bg-white text-[#080808]"
+              : "border-white/[0.16] text-[#c4c7c8] hover:border-white hover:text-white"
+          }`}
+        >
+          <Castle className="h-4 w-4" />
+          Chess Division
+        </button>
+        <button
+          onClick={() => setTab("mlbb")}
+          className={`mono-label flex items-center gap-2 border px-5 py-3 transition-colors ${
+            tab === "mlbb"
+              ? "border-white bg-white text-[#080808]"
+              : "border-white/[0.16] text-[#c4c7c8] hover:border-white hover:text-white"
+          }`}
+        >
+          <Swords className="h-4 w-4" />
+          MLBB Division
+        </button>
       </div>
 
       {/* Content */}
       <div className="mt-10">
         {tab === "chess" ? (
-          <div className="grid gap-8 lg:grid-cols-2">
+          <div className="grid gap-px border border-white/[0.08] bg-white/[0.08] lg:grid-cols-2">
             {/* Chess Info */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-              <Castle className="h-8 w-8 text-cyan-400" />
-              <h2 className="mt-4 text-xl font-bold text-white">TCO Chess</h2>
-              <p className="mt-2 text-sm leading-relaxed text-white/60">
+            <div className="bg-[#0f0f10] p-8">
+              <Castle className="h-7 w-7 text-white" />
+              <h2 className="mt-5 font-display text-2xl font-semibold uppercase tracking-tight text-white">TCO Chess</h2>
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-[#8e9192]">
                 Divisi catur TCO berkompetisi di turnamen reguler Arena Kings dan Liga Komunitas.
                 Kami memiliki pemain-pemain berbakat dari seluruh Indonesia.
               </p>
-              <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">Club Stats</h3>
+              <div className="mt-6 border border-white/[0.08] bg-[#080808] p-5">
+                <h3 className="mono-label text-[#444748]">Club Stats</h3>
                 {loadingClub ? (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-white/40"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</div>
+                  <div className="mono-label-sm mt-3 flex items-center gap-2 text-[#8e9192]"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</div>
                 ) : clubInfo ? (
-                  <div className="mt-2 space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs"><Users className="h-3 w-3 text-cyan-400" /><span className="text-white/60">Anggota:</span><span className="font-medium text-white">{clubInfo.members}</span></div>
-                    <div className="flex items-center gap-2 text-xs"><Trophy className="h-3 w-3 text-yellow-400" /><span className="text-white/60">Peringkat:</span><span className="font-medium text-white">#3 Arena Kings Mei 2026</span></div>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-2 text-xs"><Users className="h-3.5 w-3.5 text-[#8e9192]" /><span className="text-[#8e9192]">Anggota:</span><span className="font-medium text-white">{clubInfo.members}</span></div>
+                    <div className="flex items-center gap-2 text-xs"><Trophy className="h-3.5 w-3.5 text-[#8e9192]" /><span className="text-[#8e9192]">Peringkat:</span><span className="font-medium text-white">#3 Arena Kings Mei 2026</span></div>
                   </div>
-                ) : <p className="mt-2 text-xs text-white/30">Gagal memuat data club</p>}
+                ) : <p className="mono-label-sm mt-3 text-[#444748]">Gagal memuat data club</p>}
               </div>
               <a
                 href="https://www.chess.com/club/turnamen-tiktok-chess-online-club"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-4 flex items-center gap-2 text-sm font-medium text-cyan-400 transition-colors hover:text-cyan-300"
+                className="mono-label-sm mt-6 inline-flex items-center gap-2 text-white underline-offset-4 hover:underline"
               >
                 <ExternalLink className="h-4 w-4" />
                 Gabung Chess.com Club
@@ -218,64 +235,69 @@ export default function DivisiPage() {
             </div>
 
              {/* Chess Leaderboard */}
-             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-               <h3 className="text-lg font-bold text-white">Member TCO Internal ({chessPlayers.length})</h3>
-              <div className="mt-4 max-h-[600px] space-y-2 overflow-y-auto">
-                {chessPlayers.map((p, i) => (
+             <div className="bg-[#0f0f10] p-8">
+               <div className="flex items-baseline justify-between border-b border-white/[0.08] pb-4">
+                 <h3 className="font-display text-lg font-semibold text-white">Member TCO Internal</h3>
+                  <span className="mono-label text-[#444748]">{`${displayChessPlayers.length} // Atlet`}</span>
+               </div>
+              <div className="mt-2 max-h-[600px] overflow-y-auto">
+                {displayChessPlayers.map((p, i) => (
                   <button
                     key={p.username}
                     onClick={() => openPlayerPopup(p.username)}
-                    className="flex w-full items-center justify-between rounded-xl border border-white/5 px-4 py-3 transition-all hover:border-cyan-400/20 text-left"
+                    className="flex w-full items-center gap-4 border-b border-white/[0.08] px-1 py-3.5 text-left transition-colors hover:bg-[#161718]"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5 text-xs font-bold text-white/50">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm text-white/80">{p.username}</span>
-                    </div>
+                    <span className="mono-label w-8 shrink-0 text-[#444748]">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-[#c4c7c8]">{p.username}</span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-[#444748]" />
                   </button>
                 ))}
               </div>
             </div>
           </div>
         ) : (
-          <div className="grid gap-8 lg:grid-cols-2">
+          <div className="grid gap-px border border-white/[0.08] bg-white/[0.08] lg:grid-cols-2">
             {/* MLBB Info */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-              <Swords className="h-8 w-8 text-yellow-400" />
-              <h2 className="mt-4 text-xl font-bold text-white">TCO Mobile Legends</h2>
-              <p className="mt-2 text-sm leading-relaxed text-white/60">
+            <div className="bg-[#0f0f10] p-8">
+              <Swords className="h-7 w-7 text-white" />
+              <h2 className="mt-5 font-display text-2xl font-semibold uppercase tracking-tight text-white">TCO Mobile Legends</h2>
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-[#8e9192]">
                 Divisi MLBB TCO sedang dalam masa pengembangan roster inti. Kami mencari
                 talenta-talenta terbaik untuk bertanding di Land of Dawn.
               </p>
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/5 px-3 py-1 text-xs font-medium text-green-400">
-                Recruitment: Open
-              </div>
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/5 px-3 py-1 text-xs font-medium text-yellow-400">
-                <Clock className="h-3 w-3" />
-                Pendaftaran: Coming Soon
+              <div className="mt-6 flex flex-wrap gap-3">
+                <span className="pill">Recruitment: Open</span>
+                <span className="pill">
+                  <Clock className="h-3 w-3" />
+                  Pendaftaran: Coming Soon
+                </span>
               </div>
             </div>
 
             {/* MLBB Leaderboard */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-              <h3 className="text-lg font-bold text-white">Roster Tim Inti</h3>
-              <div className="mt-4 space-y-2">
-                {mlbbPlayers.map((p) => (
+            <div className="bg-[#0f0f10] p-8">
+              <div className="flex items-baseline justify-between border-b border-white/[0.08] pb-4">
+                <h3 className="font-display text-lg font-semibold text-white">Roster Tim Inti</h3>
+                <span className="mono-label text-[#444748]">{`${displayMlbbPlayers.length} // Atlet`}</span>
+              </div>
+              <div className="mt-2">
+                {displayMlbbPlayers.map((p, i) => (
                   <div
                     key={p.username}
-                    className="flex items-center justify-between rounded-xl border border-white/5 px-4 py-3 transition-all hover:border-yellow-400/20"
+                    className="flex items-center justify-between gap-4 border-b border-white/[0.08] px-1 py-3.5 transition-colors hover:bg-[#161718]"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 text-xs font-bold text-white/50">
-                        {p.id}
+                    <div className="flex min-w-0 items-center gap-4">
+                      <span className="mono-label w-8 shrink-0 text-[#444748]">
+                        {String(i + 1).padStart(2, "0")}
                       </span>
-                      <div>
-                        <span className="text-sm text-white/80">{p.username}</span>
-                        <span className="ml-2 text-xs text-white/40">{p.role}</span>
+                      <div className="min-w-0">
+                        <span className="text-sm text-white">{p.username}</span>
+                        {p.role && <span className="mono-label-sm ml-2 text-[#444748]">{p.role}</span>}
                       </div>
                     </div>
-                    <span className="text-xs text-yellow-400">{p.tier}</span>
+                    {p.tier && <span className="mono-label-sm shrink-0 text-[#c4c7c8]">{p.tier}</span>}
                   </div>
                 ))}
               </div>
@@ -286,55 +308,55 @@ export default function DivisiPage() {
 
       {/* Player Detail Popup */}
       {(loadingPlayer || selectedPlayer) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setSelectedPlayer(null); setLoadingPlayer(false) }}>
-          <div className="relative mx-4 w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#080808]/92 p-4" onClick={() => { setSelectedPlayer(null); setLoadingPlayer(false) }}>
+          <div className="relative w-full max-w-sm border border-white/[0.16] bg-[#161718] p-7" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => { setSelectedPlayer(null); setLoadingPlayer(false) }}
-              className="absolute right-4 top-4 rounded-lg p-1 text-white/40 transition-colors hover:text-white">
+              className="absolute right-4 top-4 p-1 text-[#8e9192] transition-colors hover:text-white">
               <X className="h-4 w-4" />
             </button>
 
             {loadingPlayer ? (
               <div className="flex flex-col items-center gap-3 py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
-                <p className="text-sm text-white/50">Memuat data pemain...</p>
+                <Loader2 className="h-7 w-7 animate-spin text-white" />
+                <p className="mono-label-sm text-[#8e9192]">Memuat data pemain...</p>
               </div>
             ) : selectedPlayer && (
               <>
                 <div className="flex flex-col items-center gap-3">
                   {selectedPlayer.avatar ? (
                     <img src={selectedPlayer.avatar} alt={selectedPlayer.username}
-                      className="h-20 w-20 rounded-full border-2 border-cyan-400/30 object-cover" />
+                      className="h-20 w-20 border border-white/[0.16] object-cover photo-mono" />
                   ) : (
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-cyan-400/30 bg-cyan-400/10 text-2xl font-bold text-cyan-400">
+                    <div className="flex h-20 w-20 items-center justify-center border border-white/[0.16] bg-[#0f0f10] text-2xl font-bold text-white">
                       {selectedPlayer.username.charAt(0).toUpperCase()}
                     </div>
                   )}
                   <div className="text-center">
-                    <p className="text-lg font-bold text-white">{selectedPlayer.name}</p>
-                    <p className="text-xs text-cyan-400">@{selectedPlayer.username}</p>
+                    <p className="font-display text-lg font-semibold text-white">{selectedPlayer.name}</p>
+                    <p className="mono-label-sm text-[#8e9192]">@{selectedPlayer.username}</p>
                   </div>
                   {selectedPlayer.country && (
-                    <div className="flex items-center gap-1 text-xs text-white/40">
+                    <div className="mono-label-sm flex items-center gap-1 text-[#444748]">
                       <Globe className="h-3 w-3" /> {selectedPlayer.country}
                     </div>
                   )}
                 </div>
 
-                <div className="mt-5 grid grid-cols-3 gap-2">
+                <div className="mt-5 grid grid-cols-3 gap-px border border-white/[0.08] bg-white/[0.08]">
                   {[
-                    { label: "Bullet", rating: selectedPlayer.bullet, color: "text-red-400", border: "border-red-400/20" },
-                    { label: "Blitz", rating: selectedPlayer.blitz, color: "text-orange-400", border: "border-orange-400/20" },
-                    { label: "Rapid", rating: selectedPlayer.rapid, color: "text-green-400", border: "border-green-400/20" },
+                    { label: "Bullet", rating: selectedPlayer.bullet },
+                    { label: "Blitz", rating: selectedPlayer.blitz },
+                    { label: "Rapid", rating: selectedPlayer.rapid },
                   ].map((s) => (
-                    <div key={s.label} className={`rounded-xl border ${s.border} bg-white/[0.02] p-3 text-center`}>
-                      <p className="text-[10px] font-medium uppercase tracking-wider text-white/40">{s.label}</p>
-                      <p className={`mt-1 text-lg font-bold ${s.color}`}>{s.rating || "-"}</p>
+                    <div key={s.label} className="bg-[#0f0f10] p-3 text-center">
+                      <p className="mono-label text-[#444748]">{s.label}</p>
+                      <p className="mt-1 font-display text-lg font-semibold text-white">{s.rating || "-"}</p>
                     </div>
                   ))}
                 </div>
 
                 <a href={`https://chess.com/member/${selectedPlayer.username}`} target="_blank" rel="noopener noreferrer"
-                  className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 py-2.5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105">
+                  className="btn-primary mt-5 w-full !py-3">
                   <ExternalLink className="h-3.5 w-3.5" /> Lihat Profil di Chess.com
                 </a>
               </>
@@ -344,12 +366,12 @@ export default function DivisiPage() {
       )}
 
       {/* CTA */}
-      <div className="mt-12 text-center">
+      <div className="mt-12">
         <a
           href={tab === "chess" ? "https://www.chess.com/club/turnamen-tiktok-chess-online-club" : "#"}
           target={tab === "chess" ? "_blank" : undefined}
           rel={tab === "chess" ? "noopener noreferrer" : undefined}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 hover:shadow-xl hover:shadow-cyan-500/30"
+          className="btn-primary"
         >
           {tab === "chess" ? "Gabung Chess.com Club" : "Coming Soon"}
           <ChevronRight className="h-4 w-4" />
