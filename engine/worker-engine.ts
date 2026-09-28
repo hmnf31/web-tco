@@ -238,6 +238,31 @@ export class WorkerEngine {
     })
   }
 
+  async evaluateFenDepth(
+    fen: string,
+    depth: number,
+    timeoutMs?: number,
+  ): Promise<{ score: number; mate: number | null; ok: boolean }> {
+    return this.exec(async () => {
+      if (!this.ready || !this.worker) return { score: 0, mate: null, ok: false }
+
+      this.lastEval = 0
+      this.lastMate = null
+      this.evalValue = null
+
+      this.send("position fen " + fen)
+      this.send(`go depth ${depth}`)
+
+      const budget = timeoutMs ?? Math.min(45000, 5000 + depth * 1200)
+      const result = await this.wait("bestmove", budget)
+      if (!result) {
+        this.send("stop")
+        return { score: 0, mate: null, ok: false }
+      }
+      return { score: this.lastEval, mate: this.lastMate, ok: true }
+    })
+  }
+
   private fallbackMultiPv(fen: string): StockfishMultiPvEval {
     const chess = new Chess(fen)
     const moves = chess.moves({ verbose: true })

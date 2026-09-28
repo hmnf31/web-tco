@@ -1,12 +1,20 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo, useSyncExternalStore } from "react"
 import { Chess } from "chess.js"
 import { WorkerEngine } from "@/engine/worker-engine"
-import { classifyMove, cpToWinrate, CLASSIFICATION_ICONS, type ClassificationInfo } from "@/engine/classify-utils"
-import { getIconPath } from "@/components/chess/IconBadge"
+import {
+  classifyMove, cpToWinrate, centipawnLossForMover, evalToCp,
+  type ClassificationInfo, type EvalSnapshot,
+} from "@/engine/classify-utils"
+import { isBookPosition } from "@/engine/opening-book"
+import {
+  MODE_PROFILE, ENGINE_ID, CONFIG_CHANGE_EVENT, loadConfig, type AnalysisMode,
+} from "@/lib/analysis/config"
+import { buildGameReport, type GameReport, type ReportMove } from "@/lib/analysis/report"
 
 const CACHE_PREFIX = "analysis_cache_"
+const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 function hashString(str: string): string {
   let hash = 0
@@ -17,32 +25,50 @@ function hashString(str: string): string {
   return "h" + Math.abs(hash).toString(36)
 }
 
-function readCache(pgn: string): MoveAnalysis[] | null {
+function cacheKey(pgn: string, depthKey: string): string {
+  return CACHE_PREFIX + hashString(`${ENGINE_ID}|${depthKey}|${pgn}`)
+}
+
+function readCache(pgn: string, depthKey: string): MoveAnalysis[] | null {
   try {
-    const key = CACHE_PREFIX + hashString(pgn)
-    const raw = sessionStorage.getItem(key)
+    const raw = sessionStorage.getItem(cacheKey(pgn, depthKey))
     if (raw) return JSON.parse(raw) as MoveAnalysis[]
   } catch { /* ignore */ }
   return null
 }
 
-function writeCache(pgn: string, data: MoveAnalysis[]) {
+function writeCache(pgn: string, depthKey: string, data: MoveAnalysis[]) {
   try {
-    const key = CACHE_PREFIX + hashString(pgn)
-    sessionStorage.setItem(key, JSON.stringify(data))
+    sessionStorage.setItem(cacheKey(pgn, depthKey), JSON.stringify(data))
   } catch { /* ignore */ }
 }
 
 async function cloudEvalPosition(fen: string): Promise<{ cp: number; mate: number | null }> {
-  const url = `https://lichess.org/api/cloud-eval?fen=${encodeURIComponent(fen)}`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error("Cloud eval unavailable")
-  const data = await res.json()
-  if (!data.pvs || data.pvs.length === 0) throw new Error("No evaluation data")
-  const pv = data.pvs[0]
-  if (pv.cp !== undefined) return { cp: pv.cp, mate: null }
-  if (pv.mate !== undefined) return { cp: 0, mate: pv.mate }
-  throw new Error("Unknown eval format")
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 5000)
+  try {
+    const url = `https://lichess.org/api/cloud-eval?fen=${encodeURIComponent(fen)}`
+    const res = await fetch(url, { signal: controller.signal })
+    if (!res.ok) throw new Error("Cloud eval unavailable")
+    const data = await res.json()
+    if (!data.pvs || data.pvs.length === 0) throw new Error("No evaluation data")
+    const pv = data.pvs[0]
+    if (pv.cp !== undefined) return { cp: pv.cp, mate: null }
+    if (pv.mate !== undefined) return { cp: 0, mate: pv.mate }
+    throw new Error("Unknown eval format")
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function engineToWhitePov(score: number, mate: number | null, fen: string): EvalSnapshot {
+  const turn = fen.split(" ")[1]
+  if (turn === "b") return { score: -score, mate: mate === null ? null : -mate }
+  return { score, mate }
+}
+
+function winrateWhitePov(snapshot: EvalSnapshot): number {
+  return cpToWinrate(evalToCp(snapshot))
 }
 
 export type TabType = "chesscom" | "lichess" | "pgn"
@@ -51,8 +77,11 @@ export type MoveAnalysis = {
   moveNumber: number
   san: string
   fen: string
+  mover: "w" | "b"
   evaluationBefore: number
   evaluationAfter: number
+  mateBefore: number | null
+  mateAfter: number | null
   centipawnLoss: number
   winrateBefore: number
   winrateAfter: number
@@ -68,22 +97,57 @@ export type GameInfo = {
   result?: string
   date?: string
   url?: string
+  whiteElo?: string
+  blackElo?: string
+  timeControl?: string
+}
+
+function toReportMoves(list: MoveAnalysis[]): ReportMove[] {
+  return list.map((a, i) => ({
+    index: i,
+    moveNumber: a.moveNumber,
+    san: a.san,
+    mover: a.mover,
+    fen: a.fen,
+    cpl: a.centipawnLoss,
+    evalBefore: a.evaluationBefore,
+    evalAfter: a.evaluationAfter,
+    classificationKey: a.classification.key,
+  }))
+}
+
+function subscribeAutoMode(cb: () => void): () => void {
+  window.addEventListener("resize", cb)
+  window.addEventListener(CONFIG_CHANGE_EVENT, cb)
+  return () => {
+    window.removeEventListener("resize", cb)
+    window.removeEventListener(CONFIG_CHANGE_EVENT, cb)
+  }
+}
+
+function getAutoModeSnapshot(): AnalysisMode {
+  const mobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad/i.test(window.navigator.userAgent)
+  return mobile ? "quick" : loadConfig().defaultMode
+}
+
+function getAutoModeServerSnapshot(): AnalysisMode {
+  return "standard"
 }
 
 export function useAnalysisController() {
   const [tab, setTab] = useState<TabType>("chesscom")
   const [username, setUsername] = useState("")
   const [pgn, setPgn] = useState("")
-  const [gameFen, setGameFen] = useState("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  const [gameFen, setGameFen] = useState(INITIAL_FEN)
   const [moves, setMoves] = useState<string[]>([])
   const [currentMoveIndex, setCurrentMoveIndex] = useState(-1)
   const [analysis, setAnalysis] = useState<MoveAnalysis[]>([])
   const [loading, setLoading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState("")
+  const [warning, setWarning] = useState("")
   const [gamesList, setGamesList] = useState<GameInfo[]>([])
   const [selectedGame, setSelectedGame] = useState<GameInfo | null>(null)
-  const fallbackEngineRef = useRef<WorkerEngine | null>(null)
   const movesRef = useRef<string[]>([])
   const [engineReady, setEngineReady] = useState(false)
   const [evaluation, setEvaluation] = useState(0)
@@ -94,18 +158,23 @@ export function useAnalysisController() {
   const [coachComment, setCoachComment] = useState("")
   const [page, setPage] = useState(0)
   const [gamesPerPage] = useState(5)
+  const autoMode = useSyncExternalStore(subscribeAutoMode, getAutoModeSnapshot, getAutoModeServerSnapshot)
+  const [modeOverride, setModeOverride] = useState<AnalysisMode | null>(null)
+  const mode = modeOverride ?? autoMode
+  const [shareUrl, setShareUrl] = useState("")
   const abortRef = useRef(false)
   const playIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const [accuracy, setAccuracy] = useState(0)
-  const [performanceElo, setPerformanceElo] = useState(0)
   const [analysisProgress, setAnalysisProgress] = useState(0)
   const [analysisCurrentStep, setAnalysisCurrentStep] = useState(0)
   const [analysisTotalSteps, setAnalysisTotalSteps] = useState(0)
-  const [classificationCounts, setClassificationCounts] = useState<Record<string, number>>({})
 
-  const fenCacheRef = useRef<Map<string, { score: number; mate: number | null }>>(new Map())
+  const fenCacheRef = useRef<Map<string, EvalSnapshot>>(new Map())
   const currentPgnRef = useRef("")
+  const startFenRef = useRef(INITIAL_FEN)
+  const engineRef = useRef<WorkerEngine | null>(null)
+  const engineInitRef = useRef<Promise<WorkerEngine | null> | null>(null)
+  const modeRef = useRef<AnalysisMode>(mode)
 
   const COACH_ADVICE: Record<string, string> = {
     book: "Langkah buku theory. Solid!",
@@ -121,11 +190,50 @@ export function useAnalysisController() {
     mate: "Skakmat ditemukan! Lawan tidak bisa menghindar.",
   }
 
+  const ensureEngine = useCallback((): Promise<WorkerEngine | null> => {
+    if (engineRef.current && engineRef.current.isReady()) return Promise.resolve(engineRef.current)
+    if (engineInitRef.current) return engineInitRef.current
+    engineInitRef.current = (async () => {
+      try {
+        const eng = new WorkerEngine("/workers/chess-engine.worker.js")
+        engineRef.current = eng
+        await eng.init()
+        setEngineReady(eng.isReady())
+        if (!eng.isReady()) {
+          setWarning("Engine tidak tersedia. Coba Quick Analysis.")
+          return null
+        }
+        return eng
+      } catch {
+        setWarning("Engine tidak tersedia. Coba Quick Analysis.")
+        return null
+      }
+    })()
+    return engineInitRef.current
+  }, [])
+
+  const setMode = useCallback((next: AnalysisMode) => {
+    if (analyzing) return
+    modeRef.current = next
+    setModeOverride(next)
+  }, [analyzing])
+
   useEffect(() => {
-    const eng = new WorkerEngine("/workers/chess-engine.worker.js")
-    fallbackEngineRef.current = eng
-    eng.init().then(() => setEngineReady(true))
-    return () => { eng.quit(); abortRef.current = true }
+    modeRef.current = mode
+  }, [mode])
+
+  useEffect(() => {
+    initFromUrl()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      abortRef.current = true
+      if (engineRef.current) engineRef.current.quit()
+      engineRef.current = null
+      engineInitRef.current = null
+    }
   }, [])
 
   useEffect(() => {
@@ -151,24 +259,65 @@ export function useAnalysisController() {
     return () => { if (playIntervalRef.current) { clearInterval(playIntervalRef.current); playIntervalRef.current = null } }
   }, [playMode, moves])
 
-  async function evalSingleFen(fen: string): Promise<{ score: number; mate: number | null }> {
-    const cached = fenCacheRef.current.get(fen)
-    if (cached) return cached
-    try {
-      const result = await cloudEvalPosition(fen)
-      const score = result.mate !== null ? (result.mate > 0 ? 999 : -999) : result.cp / 100
-      const entry = { score, mate: result.mate }
-      fenCacheRef.current.set(fen, entry)
-      return entry
-    } catch {
-      if (fallbackEngineRef.current) {
-        const score = await fallbackEngineRef.current.evaluatePosition(fen)
-        const entry = { score, mate: null }
-        fenCacheRef.current.set(fen, entry)
-        return entry
-      }
-      return { score: 0, mate: null }
+  const report = useMemo<GameReport | null>(
+    () => (analysis.length > 0 ? buildGameReport(toReportMoves(analysis)) : null),
+    [analysis],
+  )
+
+  const { accuracy, performanceElo, classificationCounts } = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const a of analysis) counts[a.classification.key] = (counts[a.classification.key] || 0) + 1
+    return {
+      accuracy: report ? report.overall.accuracy : 0,
+      performanceElo: report ? report.overall.performanceElo : 0,
+      classificationCounts: counts,
     }
+  }, [analysis, report])
+
+  function currentEvalOptions(): { preferCloud: boolean; depth: number } {
+    const profile = MODE_PROFILE[modeRef.current]
+    const config = loadConfig()
+    return { preferCloud: profile.cloudFirst && config.cloudEvalEnabled, depth: profile.depth }
+  }
+
+  async function evalSingleFen(fen: string, opts = currentEvalOptions()): Promise<EvalSnapshot> {
+    const key = `${fen}|${opts.preferCloud ? "cloud" : opts.depth}`
+    const cached = fenCacheRef.current.get(key)
+    if (cached) return cached
+
+    const config = loadConfig()
+    let snapshot: EvalSnapshot | null = null
+
+    if (opts.preferCloud && config.cloudEvalEnabled) {
+      try {
+        const cloud = await cloudEvalPosition(fen)
+        snapshot = { score: cloud.cp / 100, mate: cloud.mate }
+      } catch { snapshot = null }
+    }
+
+    if (!snapshot) {
+      const engine = await ensureEngine()
+      if (engine) {
+        const res = await engine.evaluateFenDepth(fen, opts.depth)
+        if (res.ok) snapshot = engineToWhitePov(res.score, res.mate, fen)
+        else setWarning("Browser terlalu berat untuk depth ini. Kurangi analysis depth.")
+      }
+      if (!snapshot && config.cloudEvalEnabled) {
+        try {
+          const cloud = await cloudEvalPosition(fen)
+          snapshot = { score: cloud.cp / 100, mate: cloud.mate }
+          if (!opts.preferCloud) setWarning("Engine tidak tersedia. Coba Quick Analysis.")
+        } catch { snapshot = null }
+      }
+    }
+
+    if (!snapshot) {
+      setWarning("Engine tidak tersedia. Coba Quick Analysis.")
+      snapshot = { score: 0, mate: null }
+    }
+
+    fenCacheRef.current.set(key, snapshot)
+    return snapshot
   }
 
   function updateEval(fen: string) {
@@ -178,27 +327,21 @@ export function useAnalysisController() {
   const analyzeMoves = useCallback(async (moveList: string[]) => {
     if (moveList.length === 0) return
     const rawPgn = currentPgnRef.current
-    const cached = rawPgn ? readCache(rawPgn) : null
+    const profile = MODE_PROFILE[modeRef.current]
+    const depthKey = profile.cloudFirst ? `cloud-d${profile.depth}` : `d${profile.depth}`
+    const evalOpts = currentEvalOptions()
+
+    const cached = rawPgn ? readCache(rawPgn, depthKey) : null
     if (cached && cached.length === moveList.length) {
       setAnalysis(cached)
       setHasResults(true)
       setMoves(moveList)
-      const counts: Record<string, number> = {}
-      const weights: Record<string, number> = { book: 1, brilliant: 1, great_find: 0.95, best: 1, excellent: 0.8, good: 0.6, forced: 0.5, inaccuracy: 0.4, mistake: 0.2, blunder: 0, mate: 1 }
-      let totalScore = 0
-      for (const a of cached) {
-        const key = a.classification.key
-        counts[key] = (counts[key] || 0) + 1
-        totalScore += weights[key] || 0
-      }
-      setAccuracy(cached.length > 0 ? Math.round((totalScore / cached.length) * 100) : 0)
-      setPerformanceElo(Math.round((totalScore / cached.length) * 20 + 500))
-      setClassificationCounts(counts)
       return
     }
 
     setAnalyzing(true)
     setHasResults(false)
+    setWarning("")
     setCurrentMoveIndex(-1)
     setAnalysisProgress(0)
     setAnalysisCurrentStep(0)
@@ -228,72 +371,68 @@ export function useAnalysisController() {
     for (let i = 0; i < total; i++) {
       if (abortRef.current) break
       const p = fenPairs[i]
+      const mover: "w" | "b" = i % 2 === 0 ? "w" : "b"
       setAnalysisCurrentStep(i + 1)
 
-      const evalBefore = await evalSingleFen(p.before)
-      await new Promise((resolve) => setTimeout(resolve, 50))
-      const evalAfter = await evalSingleFen(p.after)
+      const evalBefore = await evalSingleFen(p.before, evalOpts)
+      const evalAfter = await evalSingleFen(p.after, evalOpts)
 
       chess2.move(p.san)
-      const winrateBefore = cpToWinrate(evalBefore.score * 100)
-      const winrateAfter = cpToWinrate(evalAfter.score * 100)
-      const centipawnLoss = Math.abs(evalAfter.score - evalBefore.score) * 100
-      const winrateLoss = winrateAfter - winrateBefore
+      const cpl = centipawnLossForMover(evalBefore, evalAfter, mover)
+      const wrBefore = winrateWhitePov(evalBefore)
+      const wrAfter = winrateWhitePov(evalAfter)
+      const improved = mover === "w" ? wrAfter >= wrBefore : wrAfter <= wrBefore
+      const winrateLoss = mover === "w" ? wrBefore - wrAfter : wrAfter - wrBefore
 
       const legalMoves = chess2.moves({ verbose: true })
-      const isForced = legalMoves.length === 1 && i === total - 1
+      const isForced = legalMoves.length === 1
       const isCheckmate = chess2.isCheckmate()
-      const isBook = i < 4
-      const winrateImproved = winrateAfter > winrateBefore
+      const isBook = isBookPosition(moveList.slice(0, i))
 
-      const classification = classifyMove(centipawnLoss, isForced, isBook, isCheckmate, winrateImproved)
-
-      const pct = Math.round(((i + 1) / total) * 100)
-      setAnalysisProgress(pct)
+      const classification = classifyMove(cpl.loss, isForced, isBook, isCheckmate, improved)
 
       results.push({
         moveNumber: Math.floor(i / 2) + 1,
         san: p.san,
         fen: p.after,
+        mover,
         evaluationBefore: evalBefore.score,
         evaluationAfter: evalAfter.score,
-        centipawnLoss,
-        winrateBefore,
-        winrateAfter,
+        mateBefore: evalBefore.mate,
+        mateAfter: evalAfter.mate,
+        centipawnLoss: cpl.loss,
+        winrateBefore: wrBefore,
+        winrateAfter: wrAfter,
         winrateLoss,
         classification,
       })
+
+      setAnalysis(results.slice())
+      setHasResults(true)
+      const pct = Math.round(((i + 1) / total) * 100)
+      setAnalysisProgress(pct)
     }
 
-    setAnalysis(results)
-    setHasResults(true)
+    setAnalysis(results.slice())
+    setHasResults(results.length > 0)
     setAnalyzing(false)
     setMoves(moveList)
 
-    if (rawPgn) writeCache(rawPgn, results)
-
-    const counts: Record<string, number> = {}
-    const weights: Record<string, number> = { book: 1, brilliant: 1, great_find: 0.95, best: 1, excellent: 0.8, good: 0.6, forced: 0.5, inaccuracy: 0.4, mistake: 0.2, blunder: 0, mate: 1 }
-    let totalScore = 0
-    for (const a of results) {
-      const key = a.classification.key
-      counts[key] = (counts[key] || 0) + 1
-      totalScore += weights[key] || 0
-    }
-    const acc = results.length > 0 ? Math.round((totalScore / results.length) * 100) : 0
-    setAccuracy(acc)
-    setPerformanceElo(Math.round(acc * 20 + 500))
-    setClassificationCounts(counts)
+    if (rawPgn && results.length === total && total > 0) writeCache(rawPgn, depthKey, results)
+    if (abortRef.current) setError("Analisis dihentikan. Hasil parsial yang tersedia tetap ditampilkan.")
   }, [])
 
   function loadPGN(pgnText: string, gameInfo?: GameInfo) {
     try {
       setError("")
+      setWarning("")
       currentPgnRef.current = pgnText
       const chess = new Chess()
       chess.loadPgn(pgnText)
       const moveList = chess.history()
+      if (moveList.length === 0) throw new Error("empty")
       movesRef.current = moveList
+      startFenRef.current = INITIAL_FEN
       setGameFen(chess.fen())
       setMoves(moveList)
       setCurrentMoveIndex(-1)
@@ -301,8 +440,9 @@ export function useAnalysisController() {
       setHasResults(false)
       setAnalysis([])
       setPlayMode(false)
+      setShareUrl(buildShareUrl(pgnText, INITIAL_FEN))
     } catch {
-      setError("PGN tidak valid. Periksa format PGN.")
+      setError("PGN tidak dapat diparse. Periksa: notasi langkah, header, dan result.")
     }
   }
 
@@ -311,8 +451,15 @@ export function useAnalysisController() {
     setHasResults(false)
     setAnalysis([])
     setCurrentMoveIndex(-1)
+    setError("")
+    setWarning("")
     fenCacheRef.current.clear()
+    void ensureEngine()
     analyzeMoves(movesRef.current)
+  }
+
+  function cancelAnalysis() {
+    abortRef.current = true
   }
 
   async function fetchChessCom(username_: string) {
@@ -330,7 +477,7 @@ export function useAnalysisController() {
         try {
           const c = new Chess(); c.loadPgn(g.pgn)
           const info = c.header()
-          return { ...h, pgn: g.pgn, white: info.White || "?", black: info.Black || "?", result: info.Result || "*", date: info.Date || "" }
+          return { ...h, pgn: g.pgn, white: info.White || "?", black: info.Black || "?", result: info.Result || "*", date: info.Date || "", whiteElo: info.WhiteElo || undefined, blackElo: info.BlackElo || undefined, timeControl: info.TimeControl || undefined }
         } catch { return { ...h, pgn: g.pgn } }
       })
       if (games.length === 0) throw new Error("Tidak ada game untuk bulan ini")
@@ -348,12 +495,12 @@ export function useAnalysisController() {
       if (!res.ok) throw new Error("Gagal mengambil data. Cek username.")
       const text = await res.text()
       const pgns = text.split("\n\n\n").filter(Boolean)
-      const games: GameInfo[] = pgns.map((pgn, i) => {
+      const games: GameInfo[] = pgns.map((pgn_, i) => {
         try {
-          const c = new Chess(); c.loadPgn(pgn)
+          const c = new Chess(); c.loadPgn(pgn_)
           const info = c.header()
-          return { pgn, label: `${info.White || "?"} vs ${info.Black || "?"}`, white: info.White || "?", black: info.Black || "?", result: info.Result || "*", date: info.Date || "" }
-        } catch { return { pgn, label: `Game #${i + 1}` } }
+          return { pgn: pgn_, label: `${info.White || "?"} vs ${info.Black || "?"}`, white: info.White || "?", black: info.Black || "?", result: info.Result || "*", date: info.Date || "", whiteElo: info.WhiteElo || undefined, blackElo: info.BlackElo || undefined, timeControl: info.TimeControl || undefined }
+        } catch { return { pgn: pgn_, label: `Game #${i + 1}` } }
       })
       if (games.length === 0) throw new Error("Tidak ada game ditemukan")
       setGamesList(games)
@@ -377,11 +524,7 @@ export function useAnalysisController() {
     for (let i = 0; i <= index; i++) chess.move(moves[i])
     const fen = chess.fen()
     setGameFen(fen)
-    if (!fenCacheRef.current.has(fen)) {
-      evalSingleFen(fen).then((r) => { setEvaluation(r.score); setMate(r.mate) }).catch(() => {})
-    } else {
-      updateEval(fen)
-    }
+    evalSingleFen(fen).then((r) => { setEvaluation(r.score); setMate(r.mate) }).catch(() => {})
     const hist = chess.history({ verbose: true })
     const lm = hist[hist.length - 1]
     if (lm) setLastMove({ from: lm.from, to: lm.to })
@@ -389,6 +532,10 @@ export function useAnalysisController() {
       const key = analysis[index].classification.key
       setCoachComment(COACH_ADVICE[key] || "")
     }
+  }
+
+  function goToCriticalMoment(index: number) {
+    goToMove(index)
   }
 
   function togglePlay() {
@@ -400,20 +547,105 @@ export function useAnalysisController() {
     }
   }
 
+  function buildShareUrl(pgnText: string, startFen: string): string {
+    if (typeof window === "undefined") return ""
+    const base = `${window.location.origin}${window.location.pathname}`
+    if (pgnText) return `${base}?pgn=${encodeURIComponent(pgnText)}`
+    if (startFen && startFen !== INITIAL_FEN) return `${base}?fen=${encodeURIComponent(startFen)}`
+    return base
+  }
+
+  async function copyText(text: string): Promise<boolean> {
+    if (!text) return false
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async function copyShareLink(): Promise<boolean> {
+    const url = shareUrl || buildShareUrl(currentPgnRef.current, startFenRef.current)
+    const ok = await copyText(url)
+    setWarning(ok ? "" : "Tidak bisa menyalin link.")
+    return ok
+  }
+
+  async function shareReport(): Promise<boolean> {
+    const url = shareUrl || buildShareUrl(currentPgnRef.current, startFenRef.current)
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: "TCO Chess Report", text: `Accuracy ${accuracy}%`, url })
+        return true
+      } catch { /* user membatalkan */ }
+    }
+    return copyShareLink()
+  }
+
+  async function copyPgn(): Promise<boolean> {
+    return copyText(currentPgnRef.current)
+  }
+
+  async function copyFen(): Promise<boolean> {
+    return copyText(gameFen)
+  }
+
+  function downloadPgn() {
+    const content = currentPgnRef.current
+    if (!content) return
+    const blob = new Blob([content], { type: "application/x-chess-pgn" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = "tco-analysis.pgn"
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function initFromUrl() {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    const pgnParam = params.get("pgn")
+    const fenParam = params.get("fen")
+    if (pgnParam) {
+      const decoded = decodeURIComponent(pgnParam)
+      setPgn(decoded)
+      setTab("pgn")
+      loadPGN(decoded)
+      return
+    }
+    if (fenParam) {
+      const decoded = decodeURIComponent(fenParam)
+      try {
+        const chess = new Chess(decoded)
+        startFenRef.current = chess.fen()
+        setGameFen(chess.fen())
+        setShareUrl(buildShareUrl("", chess.fen()))
+        updateEval(chess.fen())
+      } catch {
+        setError("FEN tidak valid.")
+      }
+    }
+  }
+
   return {
     tab, setTab,
     username, setUsername,
     pgn, setPgn,
-    gameFen, moves, currentMoveIndex, analysis,
-    loading, analyzing, error,
+    gameFen, moves, currentMoveIndex, analysis, report,
+    loading, analyzing, error, warning,
     gamesList, selectedGame,
     engineReady, evaluation, mate,
     hasResults, lastMove, playMode, coachComment,
     page, setPage, gamesPerPage,
     accuracy, performanceElo, classificationCounts, analysisProgress,
     analysisCurrentStep, analysisTotalSteps,
-    setError, setGamesList,
-    loadPGN, startAnalysis, fetchChessCom, fetchLichess, goToMove, togglePlay, analyzeMoves,
+    mode, setMode,
+    shareUrl, copyShareLink, shareReport, copyPgn, copyFen, downloadPgn,
+    setError, setGamesList, setWarning,
+    loadPGN, startAnalysis, cancelAnalysis, fetchChessCom, fetchLichess,
+    goToMove, goToCriticalMoment, togglePlay, analyzeMoves,
     setGameFen, setMoves, setCurrentMoveIndex, setHasResults,
     setEvaluation, setMate, setLastMove, setAnalyzing,
   }

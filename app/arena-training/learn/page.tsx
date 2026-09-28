@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { Chess, type Square } from "chess.js"
 import Chessground from "@react-chess/chessground"
 import { motion, AnimatePresence } from "framer-motion"
-import { Check, X, RefreshCw, Award, Brain, Loader2, Star, ChevronRight, Zap, BarChart3, ThumbsUp, ThumbsDown } from "lucide-react"
+import { Check, X, RefreshCw, Award, Brain, Loader2, Star, ChevronRight, Zap, BarChart3, ThumbsUp, ThumbsDown, CalendarDays, TrendingUp, TrendingDown } from "lucide-react"
 import type { Key } from "chessground/types"
+import { dateKey, dailyIndex, saveDailyRecord } from "@/lib/puzzle/daily"
+import { loadPuzzleRating, savePuzzleRating, updatePuzzleRating } from "@/lib/puzzle/rating"
 
 type Puzzle = {
   fen: string
@@ -95,6 +97,10 @@ export default function LearnPage() {
   const [showOverlay, setShowOverlay] = useState(false)
   const [showSolution, setShowSolution] = useState(false)
   const [puzzleHistory, setPuzzleHistory] = useState<{ result: boolean; rating: number }[]>([])
+  const [showDaily, setShowDaily] = useState(false)
+  const [puzzleRating, setPuzzleRating] = useState(1200)
+  const [puzzleGames, setPuzzleGames] = useState(0)
+  const [ratingDelta, setRatingDelta] = useState<number | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem("arena-puzzle-stats")
@@ -107,7 +113,20 @@ export default function LearnPage() {
         if (s.history) setPuzzleHistory(s.history)
       } catch { /* */ }
     }
+    const ratingState = loadPuzzleRating()
+    setPuzzleRating(ratingState.rating)
+    setPuzzleGames(ratingState.games)
   }, [])
+
+  const applyRating = useCallback((puzzleRatingValue: number, correct: boolean) => {
+    const update = updatePuzzleRating({ rating: puzzleRating, games: puzzleGames }, puzzleRatingValue, correct)
+    setPuzzleRating(update.state.rating)
+    setPuzzleGames(update.state.games)
+    setRatingDelta(update.delta)
+    savePuzzleRating(update.state)
+    setTimeout(() => setRatingDelta(null), 4000)
+    return update.state
+  }, [puzzleRating, puzzleGames])
 
   const filtered = useMemo(() => puzzles.filter((p) => {
     const r = difficultyMap.find((d) => d.label === difficulty)
@@ -115,6 +134,13 @@ export default function LearnPage() {
   }), [puzzles, difficulty])
 
   const safeIdx = currentIdx < filtered.length ? currentIdx : 0
+
+  const dailyPuzzle = useMemo(
+    () => (puzzles.length > 0 ? puzzles[dailyIndex(dateKey(), puzzles.length)] : null),
+    [puzzles],
+  )
+
+  const currentPuzzle = showDaily && dailyPuzzle ? dailyPuzzle : (filtered[safeIdx] || dailyPuzzle)
 
   useEffect(() => {
     async function fetchPuzzles() {
@@ -142,9 +168,7 @@ export default function LearnPage() {
     localStorage.setItem("arena-puzzle-stats", JSON.stringify({ solved: newScore, total: newTotal, bestStreak: newBestStreak, history }))
   }, [])
 
-  const loadPuzzle = useCallback((index: number) => {
-    const arr = filtered.length > 0 ? filtered : puzzles
-    const p = arr[index % arr.length]
+  const applyPuzzle = useCallback((p?: Puzzle) => {
     if (!p) return
     const chess = new Chess(p.fen)
     setFen(chess.fen())
@@ -158,15 +182,21 @@ export default function LearnPage() {
     setLegalSqs([])
     setLastMove(null)
     setShowOverlay(false)
-  }, [filtered, puzzles])
+  }, [])
+
+  const loadPuzzle = useCallback((index: number) => {
+    const arr = showDaily && dailyPuzzle ? [dailyPuzzle] : (filtered.length > 0 ? filtered : puzzles)
+    applyPuzzle(arr[index % arr.length])
+  }, [filtered, puzzles, showDaily, dailyPuzzle, applyPuzzle])
 
   useEffect(() => {
+    if (showDaily && dailyPuzzle) { loadPuzzle(0); return }
     if (filtered.length > 0) loadPuzzle(0)
-  }, [filtered.length, difficulty])
+  }, [filtered.length, difficulty, showDaily, dailyPuzzle])
 
   function handleMove(orig: Key, dest: Key) {
     if (solved !== null) return
-    const p = filtered[safeIdx]
+    const p = currentPuzzle
     if (!p) return
 
     const g = new Chess(fen)
@@ -192,6 +222,10 @@ export default function LearnPage() {
           const newHist = [...puzzleHistory, { result: true, rating: p.rating }]
           setPuzzleHistory(newHist)
           savePuzzleStats(newScore, newTotal, newBest, newHist)
+          const nextState = applyRating(p.rating, true)
+          if (showDaily) {
+            saveDailyRecord(dateKey(), { solved: true, userRating: nextState.rating, puzzleRating: p.rating })
+          }
           setMessage("Benar! Puzzle selesai!")
           setMessageType("correct")
           return
@@ -225,7 +259,7 @@ export default function LearnPage() {
 
   function onCgSelect(key: Key) {
     if (solved !== null) return
-    const p = filtered[safeIdx]
+    const p = currentPuzzle
     if (!p) return
     const g = new Chess(fen)
     const piece = g.get(key as Square)
@@ -251,6 +285,11 @@ export default function LearnPage() {
       const newStreakVal = 0
       setStreak(newStreakVal)
     }
+    if (showDaily) {
+      loadPuzzle(0)
+      return
+    }
+    if (filtered.length === 0) return
     const n = (safeIdx + 1) % filtered.length
     setCurrentIdx(n)
     loadPuzzle(n)
@@ -258,11 +297,18 @@ export default function LearnPage() {
 
   function handleSkip() {
     const newTotal = total + 1
-    const newHist = [...puzzleHistory, { result: false, rating: filtered[safeIdx]?.rating || 0 }]
+    const skipped = currentPuzzle
+    const newHist = [...puzzleHistory, { result: false, rating: skipped?.rating || 0 }]
     setTotal(newTotal)
     setStreak(0)
     setPuzzleHistory(newHist)
     savePuzzleStats(score, newTotal, bestStreak, newHist)
+    if (skipped) {
+      const nextState = applyRating(skipped.rating, false)
+      if (showDaily) {
+        saveDailyRecord(dateKey(), { solved: false, userRating: nextState.rating, puzzleRating: skipped.rating })
+      }
+    }
     setMessage("Puzzle di-skip")
     setMessageType("info")
     setTimeout(nextPuzzle, 500)
@@ -271,8 +317,6 @@ export default function LearnPage() {
   function handleReveal() {
     setShowSolution(!showSolution)
   }
-
-  const currentPuzzle = filtered[safeIdx]
 
   const dests = useMemo(() => {
     if (!selectedSq || solved !== null) return undefined
@@ -333,15 +377,32 @@ export default function LearnPage() {
               <p className="text-[10px] text-white/30">Accuracy</p>
               <p className="text-lg font-bold text-purple-400">{accuracy}%</p>
             </div>
+            <div className="h-8 w-px bg-white/10" />
+            <div className="text-right">
+              <p className="text-[10px] text-white/30">Rating</p>
+              <p className="flex items-center justify-end gap-1 text-lg font-bold text-white/70">
+                {puzzleRating}
+                {ratingDelta !== null && (
+                  <span className={`flex items-center gap-0.5 text-xs ${ratingDelta >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {ratingDelta >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    {ratingDelta > 0 ? `+${ratingDelta}` : ratingDelta}
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
           <div className="flex gap-1 rounded-lg border border-white/10 p-1">
             {difficultyMap.map((d) => (
-              <button key={d.label} onClick={() => { setDifficulty(d.label as typeof difficulty); setCurrentIdx(0) }}
+              <button key={d.label} onClick={() => { setShowDaily(false); setDifficulty(d.label as typeof difficulty); setCurrentIdx(0) }}
                 className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${difficulty === d.label ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white" : "text-white/40 hover:text-white/60"}`}>
                 {d.label}
               </button>
             ))}
           </div>
+          <button onClick={() => { setShowDaily((prev) => !prev); setCurrentIdx(0) }}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${showDaily ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-400" : "border-white/10 text-white/50 hover:border-yellow-400/30 hover:text-yellow-400"}`}>
+            <CalendarDays className="h-3 w-3" /> Daily
+          </button>
         </div>
       </div>
 
@@ -438,7 +499,14 @@ export default function LearnPage() {
 
         <div className="space-y-4">
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">Puzzle Info</h3>
+            <h3 className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-white/50">
+              <span>Puzzle Info</span>
+              {showDaily && (
+                <span className="flex items-center gap-1 text-[10px] font-medium normal-case text-yellow-400">
+                  <CalendarDays className="h-3 w-3" /> {dateKey()}
+                </span>
+              )}
+            </h3>
             {currentPuzzle ? (
               <div className="mt-3 space-y-2">
                 <div className="flex justify-between text-xs">
@@ -513,7 +581,7 @@ export default function LearnPage() {
                 <p className="text-xs text-white/30">Tidak ada puzzle</p>
               ) : (
                 filtered.map((p, i) => (
-                  <button key={`${p.fen}-${i}`} onClick={() => { setCurrentIdx(i); loadPuzzle(i) }}
+                  <button key={`${p.fen}-${i}`} onClick={() => { setShowDaily(false); setCurrentIdx(i); applyPuzzle(p) }}
                     className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors ${safeIdx === i ? "bg-cyan-400/10 text-cyan-400" : "text-white/40 hover:bg-white/[0.02]"}`}>
                     <span>Puzzle #{i + 1}</span>
                     <div className="flex items-center gap-2">

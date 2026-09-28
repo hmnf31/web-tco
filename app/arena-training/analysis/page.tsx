@@ -1,20 +1,21 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Chessboard } from "react-chessboard"
 import { motion } from "framer-motion"
 import EvaluationBar from "@/components/chess/EvaluationBar"
 import IconBadge, { SQUARE_BG_COLORS, IconImg } from "@/components/chess/IconBadge"
 import AdSlot from "@/components/AdSlot"
-import { cpToWinrate } from "@/engine/classify-utils"
+import { cpToWinrate, evalToCp } from "@/engine/classify-utils"
+import { MODE_PROFILE, MODE_ORDER, type AnalysisMode } from "@/lib/analysis/config"
 import { useAnalysisController, type TabType } from "@/hooks/useAnalysisController"
-import type { MoveAnalysis } from "@/hooks/useAnalysisController"
 import {
   Search, FileText, ExternalLink, ChevronLeft, ChevronRight,
   AlertCircle, Zap, Brain, RotateCcw, Play, Pause, SkipBack, SkipForward,
-  Loader2, BarChart3, Award, Target, ShieldAlert, CheckCircle, AlertTriangle, MinusCircle,
+  Loader2, BarChart3, Award, Target, ShieldAlert, AlertTriangle,
+  Share2, Link2, Download, Copy, Check, BookOpen, Crosshair, Gauge, XCircle,
 } from "lucide-react"
-import { LineChart, Line, XAxis, YAxis, Area, ComposedChart, ResponsiveContainer, Tooltip, ReferenceLine, CartesianGrid } from "recharts"
+import { Line, XAxis, YAxis, Area, ComposedChart, ResponsiveContainer, Tooltip, ReferenceLine, CartesianGrid } from "recharts"
 
 const TABS: { key: TabType; label: string; icon: typeof Search }[] = [
   { key: "chesscom", label: "Chess.com", icon: ExternalLink },
@@ -28,8 +29,15 @@ const CLICKABLE_CLASSIFICATION_COLORS: Record<string, string> = {
   inaccuracy: "#eab308", mistake: "#f97316", blunder: "#ef4444", mate: "#f43f5e",
 }
 
+function winPercentOf(evaluation: number, mate: number | null): number {
+  if (mate !== null) return mate > 0 ? 100 : 0
+  return Math.round(cpToWinrate(evalToCp({ score: evaluation, mate: null })) * 100)
+}
+
 export default function AnalysisPage() {
   const ctrl = useAnalysisController()
+  const [copied, setCopied] = useState<string | null>(null)
+
   const currentClassification = ctrl.currentMoveIndex >= 0 && ctrl.analysis[ctrl.currentMoveIndex]
     ? ctrl.analysis[ctrl.currentMoveIndex].classification
     : null
@@ -82,10 +90,16 @@ export default function AnalysisPage() {
     { label: "Blunder", key: "blunder", count: ctrl.classificationCounts.blunder || 0, color: "text-red-400 bg-red-400/10 border-red-400/30" },
   ]
 
-  const winPercent = useMemo(() => {
-    const wr = cpToWinrate(ctrl.evaluation * 100)
-    return `${Math.round(wr * 100)}%`
-  }, [ctrl.evaluation])
+  const whiteWin = winPercentOf(ctrl.evaluation, ctrl.mate)
+  const report = ctrl.report
+
+  async function runCopy(key: string, fn: () => Promise<boolean>) {
+    const ok = await fn()
+    if (ok) {
+      setCopied(key)
+      setTimeout(() => setCopied(null), 1600)
+    }
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -95,13 +109,29 @@ export default function AnalysisPage() {
         <div className="flex items-center gap-3">
           <div>
             <h1 className="text-2xl font-bold text-white">Game Analysis</h1>
-            <p className="text-sm text-white/50">Analisis instan dengan engine, blunder meter, dan evaluasi</p>
+            <p className="text-sm text-white/50">Analisis progresif dengan engine, game report, dan critical moments</p>
           </div>
-          {ctrl.engineReady && (
-            <span className="flex items-center gap-1 rounded-full bg-cyan-400/10 px-2.5 py-0.5 text-[10px] font-medium text-cyan-400 border border-cyan-400/20">
-              <Zap className="h-3 w-3" /> Engine Siap
-            </span>
-          )}
+          <span className="flex items-center gap-1 rounded-full bg-cyan-400/10 px-2.5 py-0.5 text-[10px] font-medium text-cyan-400 border border-cyan-400/20">
+            <Zap className="h-3 w-3" /> {ctrl.engineReady ? "Engine Siap" : "Lazy Load"}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-white/30">Mode</span>
+          <div className="flex gap-1 rounded-lg border border-white/10 p-1">
+            {MODE_ORDER.map((id) => {
+              const profile = MODE_PROFILE[id]
+              const active = ctrl.mode === id
+              return (
+                <button key={id} onClick={() => ctrl.setMode(id as AnalysisMode)} disabled={ctrl.analyzing}
+                  title={profile.summary}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-50 ${active ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25" : "text-white/40 hover:text-white/60"}`}>
+                  {profile.label}
+                  <span className="ml-1 text-[9px] opacity-70">d{profile.depth}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
@@ -141,8 +171,15 @@ export default function AnalysisPage() {
         )}
 
         {ctrl.error && (
-          <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-400/5 border border-red-400/10 px-3 py-2 text-xs text-red-400">
-            <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {ctrl.error}
+          <div className="mt-3 flex items-start gap-2 rounded-lg bg-red-400/5 border border-red-400/10 px-3 py-2 text-xs text-red-400">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span className="whitespace-pre-line">{ctrl.error}</span>
+          </div>
+        )}
+        {ctrl.warning && (
+          <div className="mt-3 flex items-start gap-2 rounded-lg bg-yellow-400/5 border border-yellow-400/10 px-3 py-2 text-xs text-yellow-400">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span className="whitespace-pre-line">{ctrl.warning}</span>
           </div>
         )}
       </div>
@@ -172,6 +209,8 @@ export default function AnalysisPage() {
                     <div className="flex items-center gap-3 mt-1">
                       {g.result && g.result !== "*" && <span className="text-xs text-yellow-400/80">{g.result}</span>}
                       {g.date && <span className="text-[10px] text-white/30">{g.date}</span>}
+                      {g.whiteElo && <span className="text-[10px] text-white/30">Elo {g.whiteElo}-{g.blackElo || "?"}</span>}
+                      {g.timeControl && <span className="text-[10px] text-white/30">{g.timeControl}</span>}
                     </div>
                   </div>
                   {isSelected && <span className="flex items-center gap-1 rounded-full bg-cyan-400/10 px-2 py-0.5 text-[10px] text-cyan-400 ml-3"><Brain className="h-3 w-3" /> Dianalisis</span>}
@@ -212,11 +251,12 @@ export default function AnalysisPage() {
                   <span className="rounded-full bg-yellow-400/10 px-3 py-0.5 text-xs font-medium text-yellow-400">{ctrl.selectedGame.result}</span>
                 )}
                 {ctrl.selectedGame.date && <span className="text-[11px] text-white/30">{ctrl.selectedGame.date}</span>}
+                {ctrl.selectedGame.timeControl && <span className="text-[11px] text-white/30">{ctrl.selectedGame.timeControl}</span>}
               </>
             ) : (
               <span className="text-sm text-white/60">Game dimuat ({ctrl.moves.length} langkah)</span>
             )}
-            <span className="text-xs text-white/30 ml-auto">{ctrl.moves.length} langkah</span>
+            <span className="text-xs text-white/30 ml-auto">{ctrl.moves.length} langkah &middot; {MODE_PROFILE[ctrl.mode].label}</span>
           </div>
 
           {ctrl.moves.length > 0 && !ctrl.analyzing && !ctrl.hasResults && (
@@ -225,15 +265,35 @@ export default function AnalysisPage() {
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-105">
                 <Brain className="h-5 w-5" /> Mulai Analisis
               </button>
-              <p className="mt-2 text-xs text-white/30">Engine akan menganalisis {ctrl.moves.length} langkah permainan</p>
+              <p className="mt-2 text-xs text-white/30">
+                {MODE_PROFILE[ctrl.mode].label} &middot; {ctrl.moves.length} langkah &middot; hasil tampil progresif
+              </p>
             </div>
           )}
         </>
       )}
 
-      {(ctrl.analyzing || ctrl.hasResults) && ctrl.moves.length > 0 && (
+      {(ctrl.analyzing || ctrl.analysis.length > 0) && ctrl.moves.length > 0 && (
         <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
           <div>
+            {ctrl.analyzing && (
+              <div className="mb-4 rounded-xl border border-cyan-400/20 bg-cyan-400/[0.03] px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-xs font-semibold text-cyan-400">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Analysis: {ctrl.analysisProgress}% &middot; langkah {ctrl.analysisCurrentStep}/{ctrl.analysisTotalSteps}
+                  </span>
+                  <button onClick={ctrl.cancelAnalysis}
+                    className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-white/50 transition-all hover:border-red-400/30 hover:text-red-400">
+                    <XCircle className="h-3 w-3" /> Berhenti
+                  </button>
+                </div>
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-all duration-300" style={{ width: `${ctrl.analysisProgress}%` }} />
+                </div>
+              </div>
+            )}
+
             <div className="relative mx-auto max-w-[560px]">
               <div className="flex gap-3">
                 <div className="shrink-0">
@@ -253,24 +313,13 @@ export default function AnalysisPage() {
                   {iconOverlay}
                 </div>
               </div>
-
-              {ctrl.analyzing && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-slate-950/80 backdrop-blur-sm">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-cyan-400 border-t-transparent" />
-                    <div className="text-center">
-                      <p className="text-sm font-semibold text-cyan-400">Menganalisis...</p>
-                      <p className="mt-1 text-xs text-white/40">Langkah {ctrl.analysisCurrentStep}/{ctrl.analysisTotalSteps} ({ctrl.analysisProgress}%)</p>
-                    </div>
-                    <div className="h-2 w-48 overflow-hidden rounded-full bg-white/10">
-                      <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-all duration-300" style={{ width: `${ctrl.analysisProgress}%` }} />
-                    </div>
-                  </div>
-                </div>
-              )}
+              <div className="mt-2 flex items-center justify-between text-[11px] text-white/40">
+                <span>Win Probability (Putih) <span className="font-semibold text-white/70">{whiteWin}%</span></span>
+                <span className="text-white/30">{ctrl.mate !== null ? "Mate" : `${ctrl.evaluation > 0 ? "+" : ""}${ctrl.evaluation.toFixed(2)}`}</span>
+              </div>
             </div>
 
-            {ctrl.hasResults && !ctrl.analyzing && (
+            {ctrl.analysis.length > 0 && (
               <>
                 <div className="mt-4 flex items-center justify-center gap-2">
                   <button onClick={() => ctrl.goToMove(-1)}
@@ -284,11 +333,11 @@ export default function AnalysisPage() {
                   <span className="min-w-[140px] text-center text-xs text-white/30">
                     {ctrl.currentMoveIndex < 0 ? "Posisi awal" : `#${ctrl.currentMoveIndex + 1} ${ctrl.moves[ctrl.currentMoveIndex]}`}
                   </span>
-                  <button onClick={() => ctrl.goToMove(Math.min(ctrl.moves.length - 1, ctrl.currentMoveIndex + 1))}
+                  <button onClick={() => ctrl.goToMove(Math.min(ctrl.analysis.length - 1, ctrl.currentMoveIndex + 1))}
                     className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-all hover:border-cyan-400/30 hover:text-cyan-400">
                     <ChevronRight className="h-4 w-4" />
                   </button>
-                  <button onClick={() => ctrl.goToMove(ctrl.moves.length - 1)}
+                  <button onClick={() => ctrl.goToMove(ctrl.analysis.length - 1)}
                     className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-all hover:border-cyan-400/30 hover:text-cyan-400">
                     <SkipForward className="h-4 w-4" />
                   </button>
@@ -297,6 +346,12 @@ export default function AnalysisPage() {
                     className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold transition-all ${ctrl.playMode ? "bg-yellow-400/10 text-yellow-400 border border-yellow-400/30" : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 hover:scale-105"}`}>
                     {ctrl.playMode ? <><Pause className="h-3.5 w-3.5" /> Pause</> : <><Play className="h-3.5 w-3.5" /> Play</>}
                   </button>
+                  {!ctrl.analyzing && ctrl.hasResults && (
+                    <button onClick={ctrl.startAnalysis}
+                      className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition-all hover:border-cyan-400/30 hover:text-cyan-400">
+                      <RotateCcw className="h-3.5 w-3.5" /> Ulangi
+                    </button>
+                  )}
                 </div>
 
                 <div className="mt-4 text-center text-xs text-white/50">
@@ -311,6 +366,7 @@ export default function AnalysisPage() {
                 <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2 flex items-center gap-1.5">
                     <Target className="h-3 w-3" /> Evaluation Trend
+                    {ctrl.analyzing && <span className="text-cyan-400 normal-case">(progresif)</span>}
                   </h3>
                   <div className="h-40">
                     <ResponsiveContainer width="100%" height="100%">
@@ -321,7 +377,7 @@ export default function AnalysisPage() {
                         <Tooltip
                           contentStyle={{ backgroundColor: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "11px" }}
                           labelStyle={{ color: "rgba(255,255,255,0.7)" }}
-                          formatter={(value: any) => [`${Number(value) > 0 ? "+" : ""}${Number(value).toFixed(2)}`, "Evaluation"]}
+                          formatter={(value) => [`${Number(value) > 0 ? "+" : ""}${Number(value).toFixed(2)}`, "Evaluation"]}
                         />
                         <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" />
                         <defs>
@@ -332,8 +388,9 @@ export default function AnalysisPage() {
                         </defs>
                         <Area type="monotone" dataKey="evaluation" fill="url(#evalGradient)" stroke="none" />
                         <Line type="monotone" dataKey="evaluation" stroke="#22d3ee" strokeWidth={2}
-                          dot={(props: any) => {
-                            const { cx, cy, index } = props
+                          dot={(props) => {
+                            const { cx, cy } = props as { cx?: number; cy?: number }
+                            const index = (props as { index?: number }).index ?? 0
                             const key = chartData[index]?.classificationKey
                             const color = CLICKABLE_CLASSIFICATION_COLORS[key] || "#22d3ee"
                             return <circle key={index} cx={cx} cy={cy} r={3} fill={color} className="cursor-pointer" onClick={() => ctrl.goToMove(index)} />
@@ -354,6 +411,8 @@ export default function AnalysisPage() {
               const diff = ma.evaluationAfter - ma.evaluationBefore
               const diffSymbol = diff > 0.005 ? "▲" : diff < -0.005 ? "▼" : "—"
               const diffColor = diff > 0.005 ? "text-green-400" : diff < -0.005 ? "text-red-400" : "text-white/50"
+              const winBefore = Math.round(cpToWinrate(evalToCp({ score: ma.evaluationBefore, mate: ma.mateBefore })) * 100)
+              const winAfter = Math.round(cpToWinrate(evalToCp({ score: ma.evaluationAfter, mate: ma.mateAfter })) * 100)
               return (
                 <motion.div key={ctrl.currentMoveIndex} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2 flex items-center gap-1.5">
@@ -375,8 +434,16 @@ export default function AnalysisPage() {
                       <span className={`${diffColor} text-[10px]`}>{diffSymbol} {Math.abs(diff * 100).toFixed(1)}</span>
                     </div>
                     <div className="flex items-center gap-2 text-white/60">
+                      <span className="w-20">Win Probability</span>
+                      <span className="text-white/70">{winBefore}%</span>
+                      <span className="text-white/20">→</span>
+                      <span className={winAfter > winBefore ? "text-green-400" : winAfter < winBefore ? "text-red-400" : "text-white/70"}>{winAfter}%</span>
+                      <span className="text-[10px] text-white/30">(Putih)</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-white/60">
                       <span className="w-20">Centipawn Loss</span>
                       <span className="font-medium text-white/70">{Math.round(ma.centipawnLoss)} cp</span>
+                      <span className="text-[10px] text-white/30">{ma.mover === "w" ? "Putih" : "Hitam"}</span>
                     </div>
                     {ctrl.coachComment && (
                       <div className="mt-1.5 rounded-lg bg-cyan-400/5 border border-cyan-400/10 px-2.5 py-1.5">
@@ -389,11 +456,87 @@ export default function AnalysisPage() {
               )
             })()}
 
-            {ctrl.hasResults && !ctrl.analyzing && (
+            {report && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2 flex items-center gap-1.5">
+                  <Award className="h-3 w-3" /> Game Report
+                  {ctrl.analyzing && <span className="normal-case text-cyan-400">sementara</span>}
+                </h3>
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2">
+                    <p className="text-[9px] uppercase tracking-wider text-white/30">Putih</p>
+                    <p className="truncate text-xs font-semibold text-white/80">{ctrl.selectedGame?.white || "White"}</p>
+                    <p className="text-[10px] text-white/30">{ctrl.selectedGame?.whiteElo || "—"}</p>
+                  </div>
+                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2">
+                    <p className="text-[9px] uppercase tracking-wider text-white/30">Hitam</p>
+                    <p className="truncate text-xs font-semibold text-white/80">{ctrl.selectedGame?.black || "Black"}</p>
+                    <p className="text-[10px] text-white/30">{ctrl.selectedGame?.blackElo || "—"}</p>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-center gap-2">
+                  <span className="rounded-full bg-yellow-400/10 px-2.5 py-0.5 text-[11px] font-semibold text-yellow-400">
+                    {ctrl.selectedGame?.result && ctrl.selectedGame.result !== "*" ? ctrl.selectedGame.result : "Hasil tidak diketahui"}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+                  <div className="rounded-lg bg-cyan-400/5 border border-cyan-400/10 p-2">
+                    <p className="text-lg font-bold text-cyan-400">{report.white.accuracy}%</p>
+                    <p className="text-[9px] text-white/40">Accuracy Putih</p>
+                  </div>
+                  <div className="rounded-lg bg-yellow-400/5 border border-yellow-400/10 p-2">
+                    <p className="text-lg font-bold text-yellow-400">{report.black.accuracy}%</p>
+                    <p className="text-[9px] text-white/40">Accuracy Hitam</p>
+                  </div>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-center">
+                  <div className="rounded-lg bg-white/[0.02] p-2">
+                    <p className="text-sm font-bold text-white/70">{report.white.performanceElo}</p>
+                    <p className="text-[9px] text-white/30">Estimasi Putih</p>
+                  </div>
+                  <div className="rounded-lg bg-white/[0.02] p-2">
+                    <p className="text-sm font-bold text-white/70">{report.black.performanceElo}</p>
+                    <p className="text-[9px] text-white/30">Estimasi Hitam</p>
+                  </div>
+                </div>
+                <p className="mt-2 text-[9px] leading-relaxed text-white/30">
+                  Estimasi performa oleh algoritma TCO, bukan rating resmi.
+                </p>
+                {report.opening && report.opening.matchedPlies > 0 && (
+                  <div className="mt-2 flex items-center gap-1.5 border-t border-white/5 pt-2 text-[10px] text-white/50">
+                    <BookOpen className="h-3 w-3 text-purple-400" />
+                    <span className="truncate">{report.opening.name}</span>
+                    <span className="ml-auto text-white/30">{report.opening.eco}</span>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {report && report.criticalMoments.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-orange-400/20 bg-orange-400/[0.03] p-3">
+                <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2 flex items-center gap-1.5">
+                  <Crosshair className="h-3 w-3 text-orange-400" /> Critical Moments
+                  <span className="ml-auto text-white/30">{report.criticalMoments.length}</span>
+                </h3>
+                <div className="space-y-1">
+                  {report.criticalMoments.map((moment) => (
+                    <button key={moment.index} onClick={() => ctrl.goToCriticalMoment(moment.index)}
+                      className="flex w-full items-center gap-2 rounded-lg border border-white/5 px-2 py-1.5 text-left transition-colors hover:border-orange-400/30 hover:bg-orange-400/5">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-orange-400">Critical</span>
+                      <span className="font-mono text-xs text-white/80">{moment.moveNumber}{moment.mover === "b" ? "..." : "."}{moment.san}</span>
+                      <span className="ml-auto text-[10px] text-red-400">-{moment.swing}</span>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {ctrl.analysis.length > 0 && (
               <>
                 {(() => {
                   const total = ctrl.analysis.length
-                  const good = (ctrl.classificationCounts.best || 0) + (ctrl.classificationCounts.excellent || 0) + (ctrl.classificationCounts.good || 0)
+                  const good = (ctrl.classificationCounts.best || 0) + (ctrl.classificationCounts.excellent || 0) + (ctrl.classificationCounts.good || 0) + (ctrl.classificationCounts.book || 0)
                   const ok = (ctrl.classificationCounts.inaccuracy || 0) + (ctrl.classificationCounts.mistake || 0)
                   const blunder = ctrl.classificationCounts.blunder || 0
                   const goodPct = total > 0 ? Math.round((good / total) * 100) : 0
@@ -436,7 +579,7 @@ export default function AnalysisPage() {
 
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2 flex items-center gap-1.5">
-                    <Award className="h-3 w-3" /> Performa
+                    <Gauge className="h-3 w-3" /> Performa
                   </h3>
                   <div className="flex items-center justify-between">
                     <div className="text-center flex-1">
@@ -449,13 +592,80 @@ export default function AnalysisPage() {
                       <p className="text-[10px] text-white/40">Estimasi Elo</p>
                     </div>
                   </div>
+                  <p className="mt-2 text-[9px] text-white/30">Estimasi performa TCO, bukan rating resmi.</p>
                 </motion.div>
               </>
             )}
 
-            <div className="max-h-[400px] overflow-y-auto rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            {report && report.phases.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">Fase Permainan</h3>
+                <div className="space-y-1">
+                  {report.phases.map((phase) => (
+                    <div key={phase.phase} className="flex items-center justify-between rounded-lg bg-white/[0.02] px-2 py-1.5 text-xs">
+                      <span className="text-white/60">{phase.label}</span>
+                      <span className="text-white/30">{phase.range}</span>
+                      <span className={phase.errors > 0 ? "text-orange-400" : "text-green-400"}>{phase.errors} error</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {report && report.training.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.03] p-3">
+                <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2 flex items-center gap-1.5">
+                  <Brain className="h-3 w-3 text-cyan-400" /> Training
+                </h3>
+                <div className="space-y-2">
+                  {report.training.map((rec) => (
+                    <div key={rec.title} className="rounded-lg border border-white/5 bg-white/[0.02] p-2">
+                      <p className="text-xs font-semibold text-white/80">{rec.title}</p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-white/50">{rec.detail}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {rec.topics.map((topic) => (
+                          <span key={topic} className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] text-white/40">{topic}</span>
+                        ))}
+                        <a href={rec.href} className="rounded border border-cyan-400/20 bg-cyan-400/10 px-1.5 py-0.5 text-[9px] text-cyan-400 hover:bg-cyan-400/20">Latih</a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">Share &amp; Export</h3>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button onClick={() => runCopy("link", ctrl.copyShareLink)}
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 text-[11px] text-white/60 transition-all hover:border-cyan-400/30 hover:text-cyan-400">
+                  {copied === "link" ? <Check className="h-3 w-3 text-green-400" /> : <Link2 className="h-3 w-3" />}
+                  Copy Link
+                </button>
+                <button onClick={() => ctrl.shareReport()}
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 text-[11px] text-white/60 transition-all hover:border-cyan-400/30 hover:text-cyan-400">
+                  <Share2 className="h-3 w-3" /> Share
+                </button>
+                <button onClick={() => runCopy("pgn", ctrl.copyPgn)} disabled={!ctrl.selectedGame && ctrl.moves.length === 0}
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 text-[11px] text-white/60 transition-all hover:border-cyan-400/30 hover:text-cyan-400 disabled:opacity-40">
+                  {copied === "pgn" ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                  Copy PGN
+                </button>
+                <button onClick={() => runCopy("fen", ctrl.copyFen)}
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 text-[11px] text-white/60 transition-all hover:border-cyan-400/30 hover:text-cyan-400">
+                  {copied === "fen" ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                  Copy FEN
+                </button>
+                <button onClick={ctrl.downloadPgn} disabled={ctrl.moves.length === 0}
+                  className="col-span-2 flex items-center justify-center gap-1.5 rounded-lg border border-white/10 px-2 py-2 text-[11px] text-white/60 transition-all hover:border-cyan-400/30 hover:text-cyan-400 disabled:opacity-40">
+                  <Download className="h-3 w-3" /> Download PGN
+                </button>
+              </div>
+            </div>
+
+            <div className={`max-h-[400px] overflow-y-auto rounded-xl border border-white/10 bg-white/[0.03] p-3 ${ctrl.analyzing ? "opacity-90" : ""}`}>
               <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">
-                Moves <span className="text-white/30 font-normal">({ctrl.analysis.length})</span>
+                Moves <span className="text-white/30 font-normal">({ctrl.analysis.length}{ctrl.analyzing ? `/${ctrl.moves.length}` : ""})</span>
               </h3>
               <div className="space-y-0.5">
                 {ctrl.analysis.map((a, i) => (

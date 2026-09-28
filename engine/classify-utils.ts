@@ -12,6 +12,8 @@ export const CLASSIFICATION_ICONS = {
   mate: { label: "Forced Skakmat", file: "mate_32x.png", key: "mate", color: "text-rose-500 bg-rose-500/10 border-rose-500/30" },
 } as const
 
+import { getThresholds, type MoveThresholds } from "@/lib/analysis/config"
+
 export type ClassificationKey = keyof typeof CLASSIFICATION_ICONS
 export type ClassificationInfo = (typeof CLASSIFICATION_ICONS)[ClassificationKey]
 
@@ -36,20 +38,59 @@ export function classifyMove(
   isBook: boolean,
   isMate: boolean,
   winrateImproved: boolean,
+  thresholds: MoveThresholds = getThresholds(),
 ): ClassificationInfo {
   if (isMate) return CLASSIFICATION_ICONS.mate
   if (isBook) return CLASSIFICATION_ICONS.book
+  if (isForced) return CLASSIFICATION_ICONS.forced
   if (centipawnLoss <= 5 && winrateImproved) return CLASSIFICATION_ICONS.brilliant
   if (centipawnLoss <= 10 && winrateImproved) return CLASSIFICATION_ICONS.great_find
-  if (centipawnLoss <= 20) return CLASSIFICATION_ICONS.best
-  if (centipawnLoss <= 50) return CLASSIFICATION_ICONS.excellent
-  if (centipawnLoss <= 100) return CLASSIFICATION_ICONS.good
-  if (isForced && centipawnLoss <= 200) return CLASSIFICATION_ICONS.forced
-  if (centipawnLoss <= 200) return CLASSIFICATION_ICONS.inaccuracy
-  if (centipawnLoss <= 300) return CLASSIFICATION_ICONS.mistake
+  if (centipawnLoss <= thresholds.best) return CLASSIFICATION_ICONS.best
+  if (centipawnLoss <= thresholds.excellent) return CLASSIFICATION_ICONS.excellent
+  if (centipawnLoss <= thresholds.good) return CLASSIFICATION_ICONS.good
+  if (centipawnLoss <= thresholds.inaccuracy) return CLASSIFICATION_ICONS.inaccuracy
+  if (centipawnLoss <= thresholds.mistake) return CLASSIFICATION_ICONS.mistake
+  if (centipawnLoss < thresholds.blunder) return CLASSIFICATION_ICONS.mistake
   return CLASSIFICATION_ICONS.blunder
+}
+
+export type EvalSnapshot = { score: number; mate: number | null }
+
+export const MATE_CP = 100000
+
+export function evalToCp(snapshot: EvalSnapshot): number {
+  if (snapshot.mate === null) return Math.round(snapshot.score * 100)
+  const moves = Math.abs(snapshot.mate)
+  return snapshot.mate > 0 ? MATE_CP - moves * 100 : -MATE_CP + moves * 100
+}
+
+export function moverCp(cpWhitePov: number, mover: "w" | "b"): number {
+  return mover === "w" ? cpWhitePov : -cpWhitePov
+}
+
+export type CplResult = {
+  loss: number
+  beforeCp: number
+  afterCp: number
+  mateInvolved: boolean
+}
+
+export function centipawnLossForMover(
+  before: EvalSnapshot,
+  after: EvalSnapshot,
+  mover: "w" | "b",
+): CplResult {
+  const beforeCp = moverCp(evalToCp(before), mover)
+  const afterCp = moverCp(evalToCp(after), mover)
+  return {
+    loss: Math.max(0, beforeCp - afterCp),
+    beforeCp,
+    afterCp,
+    mateInvolved: before.mate !== null || after.mate !== null,
+  }
 }
 
 export function getCentipawnLoss(evalAfter: number, evalBefore: number): number {
   return Math.abs(evalAfter - evalBefore) * 100
 }
+

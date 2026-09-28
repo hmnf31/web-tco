@@ -102,6 +102,21 @@ const BOOK: BookEntry[] = [
 
 const TOTAL_WEIGHTS = 1000
 
+const BOOK_POSITIONS: Set<string> = (() => {
+  const known = new Set<string>()
+  for (const entry of BOOK) {
+    known.add(entry.moves.join(" "))
+    for (const response of entry.responses) {
+      known.add([...entry.moves, response.move].join(" "))
+    }
+  }
+  return known
+})()
+
+export function isBookPosition(moveHistory: string[]): boolean {
+  return BOOK_POSITIONS.has(moveHistory.join(" "))
+}
+
 export function getBookMove(moveHistory: string[]): string | null {
   for (const entry of BOOK) {
     if (entry.moves.length > moveHistory.length) continue
