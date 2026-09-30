@@ -1,8 +1,8 @@
 "use client"
 
 import { Suspense, useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"
-import { ExternalLink, Link2, Loader2, TriangleAlert, Users } from "lucide-react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { ExternalLink, Link2, Loader2, Search, TriangleAlert, Users, X } from "lucide-react"
 import { checkGameLink } from "@/lib/league"
 
 type Pick = 1 | 2
@@ -22,9 +22,82 @@ function buildSlots(sp: URLSearchParams): GameSlot[] {
   return slots
 }
 
+// Input manual untuk user biasa: tempel link Chessigma sendiri, tanpa lewat Liga Results.
+function ManualInput({ onLoad, onClose }: { onLoad: (url: string) => void; onClose: () => void }) {
+  const [value, setValue] = useState("")
+  const [error, setError] = useState<string | null>(null)
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const check = checkGameLink(value)
+    if (!check.ok) { setError(check.reason); return }
+    if (!check.url) { setError("Link game belum diisi"); return }
+    setError(null)
+    onLoad(check.url)
+  }
+
+  return (
+    <form onSubmit={submit} className="border border-white/[0.08] bg-[#0d0d0e] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <span className="mono-label-sm text-[#ffb454]">ANALISIS GAME SENDIRI</span>
+          <p className="mt-1 text-sm text-[#8e9192]">
+            Tempel link game dari <b className="text-white">chessigma.com</b>, lalu move demi move bisa
+            dipelajari di bawah.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Tutup input link game"
+          className="shrink-0 text-[#5c5f60] transition-colors hover:text-white"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input
+          type="url"
+          inputMode="url"
+          value={value}
+          onChange={e => { setValue(e.target.value); if (error) setError(null) }}
+          placeholder="https://www.chessigma.com/game/..."
+          aria-label="Link game Chessigma"
+          aria-invalid={Boolean(error)}
+          className="mono-label-sm min-w-0 flex-1 border border-white/[0.12] bg-black/40 px-3 py-2 text-white placeholder:text-[#5c5f60] focus:border-[#00d9ff] focus:outline-none"
+        />
+        <button
+          type="submit"
+          className="mono-label-sm flex items-center justify-center gap-1.5 border border-[#00d9ff] bg-[#00d9ff]/10 px-4 py-2 text-[#00d9ff] transition-colors hover:bg-[#00d9ff]/20"
+        >
+          <Search className="h-3 w-3" />
+          Muat Game
+        </button>
+      </div>
+
+      {error && <p className="mt-2 text-xs text-[#ff3aae]">{error}</p>}
+    </form>
+  )
+}
+
 function Viewer() {
   const sp = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const [showInput, setShowInput] = useState(false)
   const slots = useMemo(() => buildSlots(sp), [sp])
+
+  // Link manual ditulis ke query string, sama seperti link dari Liga Results,
+  // supaya bisa di-share, di-bookmark, dan di-back-button.
+  function loadManual(url: string) {
+    const q = new URLSearchParams(sp.toString())
+    q.set("g1", url)
+    q.delete("g2")
+    q.delete("pick")
+    router.replace(`${pathname}?${q.toString()}`)
+    setShowInput(false)
+  }
   const meta = useMemo(() => {
     const s1 = sp.get("s1")
     const s2 = sp.get("s2")
@@ -56,20 +129,33 @@ function Viewer() {
 
   if (slots.length === 0) {
     return (
-      <div className="mx-auto max-w-lg border border-white/[0.08] bg-[#0d0d0e] p-8 text-center">
-        <span className="mono-label-sm text-[#ffb454]">BELUM ADA GAME</span>
-        <h1 className="mt-3 text-2xl font-bold text-white">Belum ada link game Chessigma</h1>
-        <p className="mt-3 text-sm leading-relaxed text-[#8e9192]">
-          Buka tab <b className="text-white">03 · Results</b> di halaman Liga TCO, lalu klik
-          <b className="text-white"> Analisis Game 1</b> atau <b className="text-white"> Analisis Game 2</b>.
-          Admin menginput link game setiap pertandingan di panel admin Liga.
-        </p>
-        <a
-          href="/liga"
-          className="mono-label-sm mt-6 inline-flex items-center gap-1.5 border border-white/[0.16] px-3 py-2 text-white transition-colors hover:border-[#00d9ff] hover:text-[#00d9ff]"
-        >
-          Buka halaman Liga
-        </a>
+      <div className="mx-auto max-w-lg space-y-4">
+        <div className="border border-white/[0.08] bg-[#0d0d0e] p-8 text-center">
+          <span className="mono-label-sm text-[#ffb454]">BELUM ADA GAME</span>
+          <h1 className="mt-3 text-2xl font-bold text-white">Analisis game Liga TCO</h1>
+          <p className="mt-3 text-sm leading-relaxed text-[#8e9192]">
+            Tempel link game dari <b className="text-white">chessigma.com</b> untuk memuat papan
+            analisis move demi move, atau buka tab <b className="text-white">03 · Results</b> di
+            halaman Liga TCO untuk melihat game yang sudah diinput admin.
+          </p>
+          <div className="mt-6 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+            <button
+              type="button"
+              onClick={() => setShowInput(true)}
+              className="mono-label-sm flex w-full items-center justify-center gap-1.5 border border-[#00d9ff] bg-[#00d9ff]/10 px-4 py-2.5 text-[#00d9ff] transition-colors hover:bg-[#00d9ff]/20 sm:w-auto"
+            >
+              <Search className="h-3 w-3" />
+              Tempel Link Game
+            </button>
+            <a
+              href="/liga"
+              className="mono-label-sm flex w-full items-center justify-center gap-1.5 border border-white/[0.16] px-4 py-2.5 text-white transition-colors hover:border-[#00d9ff] hover:text-[#00d9ff] sm:w-auto"
+            >
+              Buka halaman Liga
+            </a>
+          </div>
+        </div>
+        {showInput && <ManualInput onLoad={loadManual} onClose={() => setShowInput(false)} />}
       </div>
     )
   }
@@ -103,6 +189,17 @@ function Viewer() {
             {s.label}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => setShowInput(v => !v)}
+          className={`mono-label-sm border px-3 py-1.5 transition-colors ${
+            showInput
+              ? "border-[#ffb454] bg-[#ffb454]/10 text-[#ffb454]"
+              : "border-white/[0.12] text-[#8e9192] hover:border-white/[0.28] hover:text-white"
+          }`}
+        >
+          {showInput ? "Tutup" : "Ganti Link"}
+        </button>
         {current && (
           <a
             href={current.url}
@@ -114,6 +211,8 @@ function Viewer() {
           </a>
         )}
       </div>
+
+      {showInput && <ManualInput onLoad={loadManual} onClose={() => setShowInput(false)} />}
 
       <div className="relative aspect-[4/3] w-full border border-white/[0.08] bg-[#0d0d0e]">
         {current && (
