@@ -8,6 +8,10 @@
  * Kolom RESULTS: score1 | score2 | wo_player | game1_url | game2_url
  * game1_url / game2_url diisi link halaman game di chessigma.com, satu link per game.
  * Kosongkan kalau link-nya belum diinput di panel admin Liga.
+ *
+ * Kolom PLAYERS: id | name | username | league | elo | elo_avg | peak_blitz | pp | wo_count | status
+ * Jalankan PULL_FROM_WEBSITE sekali setelah update skrip ini, supaya tab PLAYERS
+ * dapat kolom peak_blitz. PULL hanya menulis ke spreadsheet, tidak ke database.
  */
 
 // ── KONSTANTA ────────────────────────────────────────────────────────────────────
@@ -36,7 +40,7 @@ function ensureSheets_(ss, names) {
 }
 function headers_(tab) {
   var map = {
-    PLAYERS:   ["id","name","username","league","elo","elo_avg","pp","wo_count","status"],
+    PLAYERS:   ["id","name","username","league","elo","elo_avg","peak_blitz","pp","wo_count","status"],
     SCHEDULES: ["id","league","round","player1_id","player2_id","date","time","status"],
     RESULTS:   ["id","schedule_id","score1","score2","wo_player","game1_url","game2_url"],
     SEASON:    ["season"]
@@ -76,8 +80,8 @@ function pullFromWebsite(ss) {
   var body = (callJson_("/api/liga").data || {});
   var players = (body.players || []).map(function (p) {
     return { id: p.id, name: p.name, username: p.username, league: p.league,
-             elo: p.elo, elo_avg: p.elo_avg || "", pp: p.pp || "",
-             wo_count: p.wo_count || 0, status: p.status };
+             elo: p.elo, elo_avg: p.elo_avg || "", peak_blitz: p.peak_blitz || 0,
+             pp: p.pp || "", wo_count: p.wo_count || 0, status: p.status };
   });
   var schedules = (body.schedules || []).map(function (s) {
     return { id: s.id, league: s.league, round: s.round,

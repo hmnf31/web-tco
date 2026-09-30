@@ -8,10 +8,12 @@
 --    ditahan lock SHARE ROW EXCLUSIVE selama pemindaian.
 -- 3. Kolom lama tidak di-drop, jadi rollback cukup mengabaikan kolom baru.
 
+-- @step 1
 ALTER TABLE public.tco_league_results
   ADD COLUMN IF NOT EXISTS game1_url TEXT,
   ADD COLUMN IF NOT EXISTS game2_url TEXT;
 
+-- @step 2
 -- Hanya host Chessigma yang boleh, supaya tidak ada iframe ke situs lain.
 ALTER TABLE public.tco_league_results
   DROP CONSTRAINT IF EXISTS league_result_game1_url_valid;
@@ -33,6 +35,7 @@ ALTER TABLE public.tco_league_results
     OR game2_url ~ '^https://(www\.)?chessigma\.com/[^[:space:]]*$'
   ) NOT VALID;
 
+-- @step 3
 -- Validasi terpisah: lock SHARE UPDATE EXCLUSIVE, tidak memblokir baca/tulis liga.
 ALTER TABLE public.tco_league_results
   VALIDATE CONSTRAINT league_result_game1_url_valid;
