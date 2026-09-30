@@ -170,11 +170,6 @@ export function woStatusLabel(woCount: number, status?: string): string {
   return ""
 }
 
-// Skor 0.5 / 1.5 berarti satu game gritty: 1 menang + 1 remis.
-function isSplitScore(score: number): boolean {
-  return score === 0.5 || score === 1.5
-}
-
 export interface ScoreOutcome {
   w: number
   d: number
@@ -182,16 +177,21 @@ export interface ScoreOutcome {
   pts: number
 }
 
-// Konversi skor match (2 game) → W / D / L / poin untuk satu sisi.
-//   2 – 0     → W 1, D 0, L 0, 2.0
-//   1.5 – 0.5 → W 1, D 1, L 0, 1.5   (1 menang + 1 remis)
-//   1 – 1     → W 0, D 1, L 0, 1.0
-//   0.5 – 1.5 → W 0, D 1, L 1, 0.5
-//   0 – 2     → W 0, D 0, L 1, 0.0
-export function outcomeFromScore(score: number, opponent: number): ScoreOutcome {
-  if (score === opponent) return { w: 0, d: 1, l: 0, pts: score }
-  if (score > opponent) return { w: 1, d: isSplitScore(score) ? 1 : 0, l: 0, pts: score }
-  return { w: 0, d: isSplitScore(score) ? 1 : 0, l: 1, pts: score }
+// 1 ronde = 2 game, dan W/D/L dihitung per game, bukan per match:
+//   win   = game yang dimenangkan (bagian bulat skor)
+//   draw  = game remis, yaitu quando skor punya pecahan 0.5
+//   lose  = tidak ada; kalah di satu ronde tidak dihitung sebagai "kalah"
+//   poin  = skornya sendiri
+//   2 – 0     → W 2, D 0, L 0, 2.0
+//   1.5 – 0.5 → W 1, D 1, L 0, 1.5
+//   1 – 1     → W 1, D 0, L 0, 1.0
+//   0.5 – 1.5 → W 0, D 1, L 0, 0.5
+//   0 – 2     → W 0, D 0, L 0, 0.0
+// Karena W + D selalu 2, kolom L tidak pernah terisi.
+export function outcomeFromScore(score: number): ScoreOutcome {
+  const whole = Math.floor(score)
+  const draw = score - whole === 0.5 ? 1 : 0
+  return { w: whole, d: draw, l: 0, pts: score }
 }
 
 export function computeStandings(
@@ -215,8 +215,8 @@ export function computeStandings(
     const sc1 = Number(r.score1)
     const sc2 = Number(r.score2)
     if (!Number.isFinite(sc1) || !Number.isFinite(sc2)) continue
-    const o1 = outcomeFromScore(sc1, sc2)
-    const o2 = outcomeFromScore(sc2, sc1)
+    const o1 = outcomeFromScore(sc1)
+    const o2 = outcomeFromScore(sc2)
     s1.mp++; s1.w += o1.w; s1.d += o1.d; s1.l += o1.l; s1.pts += o1.pts
     s2.mp++; s2.w += o2.w; s2.d += o2.d; s2.l += o2.l; s2.pts += o2.pts
   }

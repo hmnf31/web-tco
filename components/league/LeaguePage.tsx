@@ -55,7 +55,8 @@ function ScoreTag({ s1, s2 }: { s1: number; s2: number }) {
 
 const RULES = [
   "Setiap player bermain melawan seluruh player di divisinya (Round Robin).",
-  "Dua game Blitz 5 menit, warna bergantian, rated, menggunakan akun Chess.com utama.",
+  "Satu match = dua game Blitz 5 menit, warna bergantian, rated, menggunakan akun Chess.com utama.",
+  "Poin dihitung per game: menang 2–0 dapat 2 poin, seri 1–1 masing-masing 1 poin, dan 1.5–0.5 memberi 1.5 ke unggul serta 0.5 ke kalah.",
   "Waktu bermain ditentukan kedua pemain; koordinasi lewat japri atau grup TCO.",
   "Periode ronde: Senin 01.00 WIB hingga Minggu 19.00 WIB.",
   "Wajib lapor di grup TCO sebelum bermain. Tanpa laporan, match dianggap tidak sah.",
@@ -338,8 +339,9 @@ export default function LeaguePage() {
                 })}
                 {standings.length === 0 && <p className="muted" style={{ padding: 24 }}>Belum ada peserta di {league}.</p>}
                 <p className="standings-note">
-                  Match = 2 game. 2–0 → 1 menang · 1.5–0.5 → 1 menang + 1 remis · 1–1 → 1 remis.
-                  MP/W/D/L per match, PTS = jumlah poin dari 2 game. WO: 1× −1, 2× −3, 3× diskualifikasi.
+                  Match = 2 game, W/D dihitung per game: 2–0 → 2 menang · 1.5–0.5 → 1 menang + 1 remis ·
+                  1–1 → masing-masing 1 menang. MP per match, PTS = poin dari 2 game.
+                  WO: 1× −1, 2× −3, 3× diskualifikasi.
                 </p>
               </section>
             )}
