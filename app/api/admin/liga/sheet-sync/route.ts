@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin"
 import { requireAdmin } from "@/lib/admin-guard"
+import { GAME_LINK_MIGRATION, checkGameLink, describeDbError, isMissingGameLinkColumn } from "@/lib/league"
 
 const SHEET_SECRET = process.env.SHEET_SYNC_SECRET || ""
 
@@ -84,18 +85,58 @@ export async function POST(request: Request) {
   }
 
   if (Array.isArray(body.results) && body.results.length > 0) {
-    const rows = body.results.map((r: any) => ({
-      id: String(r.id || `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`),
-      schedule_id: String(r.schedule_id || ""),
-      score1: Number(r.score1 || 0),
-      score2: Number(r.score2 || 0),
-      pgn: typeof r.pgn === "string" && r.pgn.trim() ? r.pgn.trim() : null,
-    }))
-    const { error } = await (supabase as any)
-      .from("tco_league_results")
-      .upsert(rows, { onConflict: "schedule_id" })
-    if (error) errors.push(`results: ${error.message}`)
-    else summaries.results = rows.length
+    const rows: any[] = []
+    for (const r of body.results) {
+      const scheduleId = String(r.schedule_id || "")
+      if (!scheduleId) continue
+      const woRaw = Number(r.wo_player ?? r.wo ?? 0)
+      const wo = woRaw === 1 || woRaw === 2 ? woRaw : 0
+      const link1 = checkGameLink(r.game1_url)
+      if (!link1.ok) { errors.push(`results: ${scheduleId} game1_url — ${link1.reason}`); continue }
+      const link2 = checkGameLink(r.game2_url)
+      if (!link2.ok) { errors.push(`results: ${scheduleId} game2_url — ${link2.reason}`); continue }
+      rows.push({
+        id: String(r.id || `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`),
+        schedule_id: scheduleId,
+        score1: Number(r.score1 || 0),
+        score2: Number(r.score2 || 0),
+        wo_player: wo,
+        game1_url: link1.url || null,
+        game2_url: link2.url || null,
+      })
+    }
+    if (rows.length > 0) {
+      let { error } = await (supabase as any)
+        .from("tco_league_results")
+        .upsert(rows, { onConflict: "schedule_id" })
+      // Kolom link game opsional: kalau migration-nya belum jalan, skor tetap
+      // disinkronkan tanpa link daripada seluruh import gagal.
+      if (isMissingGameLinkColumn(error)) {
+        const withoutLinks = rows.map(({ game1_url, game2_url, ...rest }: any) => rest)
+        const retry = await (supabase as any)
+          .from("tco_league_results")
+          .upsert(withoutLinks, { onConflict: "schedule_id" })
+        error = retry.error
+        if (!error) summaries.linksSkipped = rows.length
+      }
+      if (error) errors.push(`results: ${describeDbError(error)}`)
+      else summaries.results = rows.length
+    }
+  }
+
+  // Skor dari spreadsheet harus ikut menandai jadwal selesai, kalau tidak
+  // computeStandings akan melewati match ini (MP/W/D/L tetap 0).
+  if (Array.isArray(body.results) && body.results.length > 0) {
+    const scheduleIds = [...new Set(
+      body.results.map((r: any) => String(r.schedule_id || "")).filter(Boolean)
+    )] as string[]
+    if (scheduleIds.length > 0) {
+      const { error } = await (supabase as any)
+        .from("tco_league_schedules")
+        .update({ status: "completed" })
+        .in("id", scheduleIds)
+      if (error) errors.push(`schedules (status completed): ${error.message}`)
+    }
   }
 
   if (body.season && String(body.season).trim()) {

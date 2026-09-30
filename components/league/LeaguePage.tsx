@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { toJpeg } from "html-to-image"
-import { computeStandings, LEAGUES, LC, type GameResult, type League, type Player, type Schedule } from "@/lib/league"
-import LeagueAnalysisModal from "./LeagueAnalysisModal"
+import { buildAnalysisHref, computeStandings, LEAGUES, LC, woStatusLabel } from "@/lib/league"
+import type { GameResult, League, Player, Schedule } from "@/lib/league"
 
 function Logo({ color }: { color: string }) {
   return (
@@ -77,7 +77,6 @@ export default function LeaguePage() {
   const [league, setLeague] = useState<League>("Liga 1")
   const [leagueTab, setLeagueTab] = useState<"standing" | "coming" | "results">("standing")
   const [view, setView] = useState<"league" | "rules">("league")
-  const [analysis, setAnalysis] = useState<{ result: GameResult; schedule: Schedule } | null>(null)
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
   const panelRef = useRef<HTMLElement | null>(null)
 
@@ -143,8 +142,11 @@ export default function LeaguePage() {
   const exportCsv = (type: "standing" | "coming" | "results") => {
     let csv = ""
     if (type === "standing") {
-      csv = ["Posisi,Nama,Chess.com,ELO,MP,W,D,L,Poin",
-        ...standings.map((p, i) => [i + 1, p.name, p.username, p.elo, p.mp, p.w, p.d, p.l, p.pts.toFixed(1)].join(","))].join("\n")
+      csv = ["Posisi,Nama,Chess.com,ELO,MP,W,D,L,Poin,WO,PenaltiWO",
+        ...standings.map((p, i) => [
+          i + 1, p.name, p.username, p.elo, p.mp, p.w, p.d, p.l, p.pts.toFixed(1),
+          p.wo_count || 0, p.woPenalty,
+        ].join(","))].join("\n")
     } else if (type === "coming") {
       csv = ["Round,Tanggal,Jam,Status,Player 1,Player 2",
         ...comingUp.map(s => {
@@ -153,12 +155,12 @@ export default function LeaguePage() {
           return [s.round, s.date, s.time, s.status, p1?.name || "?", p2?.name || "?"].join(",")
         })].join("\n")
     } else {
-      csv = ["Round,Tanggal,Player 1,Skor,Player 2",
+      csv = ["Round,Tanggal,Player 1,Skor,Player 2,Link Game 1,Link Game 2",
         ...completed.map(s => {
           const r = rMap.get(s.id)
           const p1 = getPlayer(s.player1_id)
           const p2 = getPlayer(s.player2_id)
-          return [s.round, s.date, p1?.name || "?", `${r?.score1}-${r?.score2}`, p2?.name || "?"].join(",")
+          return [s.round, s.date, p1?.name || "?", `${r?.score1}-${r?.score2}`, p2?.name || "?", r?.game1_url || "", r?.game2_url || ""].join(",")
         })].join("\n")
     }
     const a = document.createElement("a")
@@ -187,10 +189,23 @@ export default function LeaguePage() {
     }
   }
 
-  const openAnalysis = (scheduleId: string) => {
+  const analysisHrefFor = (scheduleId: string, pick?: 1 | 2) => {
     const schedule = schedules.find(s => s.id === scheduleId)
     const result = rMap.get(scheduleId)
-    if (schedule && result) setAnalysis({ schedule, result })
+    if (!schedule || !result) return "/arena-training"
+    return buildAnalysisHref({
+      game1: result.game1_url,
+      game2: result.game2_url,
+      player1: getPlayer(schedule.player1_id)?.name,
+      player2: getPlayer(schedule.player2_id)?.name,
+      username1: getPlayer(schedule.player1_id)?.username,
+      username2: getPlayer(schedule.player2_id)?.username,
+      league: schedule.league,
+      round: schedule.round,
+      score1: Number(result.score1),
+      score2: Number(result.score2),
+      date: schedule.date,
+    }, pick)
   }
 
   // ── Hero countdown ──
@@ -307,16 +322,25 @@ export default function LeaguePage() {
 
             {leagueTab === "standing" && (
               <section className="table-shell">
-                <div className="table-head"><span>POS</span><span>PEMAIN</span><span>ELO</span><span>MP</span><span>W</span><span>D</span><span>L</span><span>PTS</span></div>
-                {standings.map((p, i) => (
-                  <div key={p.id} className={`standing-row ${i < 2 ? "promotion" : i >= standings.length - 2 ? "relegation" : ""}`}>
-                    <span className="position">{i + 1}{i < 2 ? " ↑" : i >= standings.length - 2 ? " ↓" : ""}</span>
-                    <span className="player"><Av name={p.name} color={cfg.color} pp={p.pp} /><b>{p.name}</b><small><button type="button" className="player-username" onClick={() => setSelectedPlayer(p)}>@{p.username || "-"}</button>{p.elo_avg > 0 ? ` · AVG ${p.elo_avg}` : ""}{p.wo_count > 0 ? ` · WO×${p.wo_count}` : ""}{p.status === "disqualified" ? " · DIDISKUALIFIKASI" : ""}</small></span>
-                    <span>{p.elo}</span><span>{p.mp}</span><span>{p.w}</span><span>{p.d}</span><span>{p.l}</span>
-                    <strong>{p.pts.toFixed(1)}</strong>
-                  </div>
-                ))}
+                <div className="table-head"><span>POS</span><span>PEMAIN</span><span>ELO</span><span>MP</span><span>W</span><span>D</span><span>L</span><span>PTS</span><span>WO</span><span>PEN</span></div>
+                {standings.map((p, i) => {
+                  const woLabel = woStatusLabel(p.wo_count, p.status)
+                  return (
+                    <div key={p.id} className={`standing-row ${i < 2 ? "promotion" : i >= standings.length - 2 ? "relegation" : ""}`}>
+                      <span className="position">{i + 1}{i < 2 ? " ↑" : i >= standings.length - 2 ? " ↓" : ""}</span>
+                      <span className="player"><Av name={p.name} color={cfg.color} pp={p.pp} /><b>{p.name}</b><small><button type="button" className="player-username" onClick={() => setSelectedPlayer(p)}>@{p.username || "-"}</button>{p.elo_avg > 0 ? ` · AVG ${p.elo_avg}` : ""}{woLabel ? ` · ${woLabel}` : ""}</small></span>
+                      <span>{p.elo}</span><span>{p.mp}</span><span>{p.w}</span><span>{p.d}</span><span>{p.l}</span>
+                      <strong title={p.woPenalty > 0 ? `${p.rawPts.toFixed(1)} − ${p.woPenalty} penalti WO` : undefined}>{p.pts.toFixed(1)}</strong>
+                      <span className={p.wo_count > 0 ? "col-wo" : "col-dim"}>{p.wo_count || "—"}</span>
+                      <span className={p.woPenalty > 0 ? "col-pen" : "col-dim"}>{p.woPenalty > 0 ? `−${p.woPenalty}` : "—"}</span>
+                    </div>
+                  )
+                })}
                 {standings.length === 0 && <p className="muted" style={{ padding: 24 }}>Belum ada peserta di {league}.</p>}
+                <p className="standings-note">
+                  Match = 2 game. 2–0 → 1 menang · 1.5–0.5 → 1 menang + 1 remis · 1–1 → 1 remis.
+                  MP/W/D/L per match, PTS = jumlah poin dari 2 game. WO: 1× −1, 2× −3, 3× diskualifikasi.
+                </p>
               </section>
             )}
 
@@ -359,16 +383,25 @@ export default function LeaguePage() {
                   const p1 = getPlayer(s.player1_id)
                   const p2 = getPlayer(s.player2_id)
                   if (!r) return null
+                  const hasLinks = Boolean(r.game1_url || r.game2_url)
                   return (
                     <article key={s.id} className="result-card">
                       <div>
                         <span className="round">ROUND {String(s.round).padStart(2, "0")} · {new Date(s.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>
                         <h3><button type="button" className="player-result-name" onClick={() => p1 && setSelectedPlayer(p1)}>{p1?.name}</button> <ScoreTag s1={Number(r.score1)} s2={Number(r.score2)} /> <button type="button" className="player-result-name" onClick={() => p2 && setSelectedPlayer(p2)}>{p2?.name}</button></h3>
-                        <p>Blitz 5+0 · 2 permainan · Rated{r.pgn ? " · PGN tersedia" : ""}</p>
+                        <p>Blitz 5+0 · 2 permainan · Rated{r.wo_player ? ` · WO ${r.wo_player === 1 ? p1?.name : p2?.name}` : ""}</p>
                       </div>
-                      <button className="outline-btn" onClick={() => openAnalysis(s.id)}>
-                        {r.pgn ? "Analisis PGN ↗" : "Lihat Detail ↗"}
-                      </button>
+                      <div className="result-actions">
+                        {r.game1_url && (
+                          <a className="outline-btn" href={analysisHrefFor(s.id, 1)}>Analisis Game 1 ↗</a>
+                        )}
+                        {r.game2_url && (
+                          <a className="outline-btn" href={analysisHrefFor(s.id, 2)}>Analisis Game 2 ↗</a>
+                        )}
+                        {!hasLinks && (
+                          <span className="result-nolink">Link game belum diinput admin</span>
+                        )}
+                      </div>
                     </article>
                   )
                 })}
@@ -405,15 +438,6 @@ export default function LeaguePage() {
 
       {selectedPlayer && (
         <PlayerStatsModal player={selectedPlayer} color={cfg.color} onClose={() => setSelectedPlayer(null)} />
-      )}
-
-      {analysis && (
-        <LeagueAnalysisModal
-          schedule={analysis.schedule}
-          result={analysis.result}
-          players={players}
-          onClose={() => setAnalysis(null)}
-        />
       )}
     </main>
   )

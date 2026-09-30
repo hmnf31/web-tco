@@ -11,6 +11,7 @@ function sanitizePlayer(body: any): Partial<Player> {
     league,
     elo: Math.max(0, Math.round(Number(body?.elo || 1000))),
     elo_avg: Math.max(0, Math.round(Number(body?.elo_avg || 0))),
+    peak_blitz: Math.max(0, Math.round(Number(body?.peak_blitz || 0))),
     pp: String(body?.pp || "").trim().slice(0, 500),
     wo_count: Math.max(0, Math.round(Number(body?.wo_count || 0))),
     status: body?.status === "disqualified" ? "disqualified" : "active",

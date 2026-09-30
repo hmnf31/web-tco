@@ -1,9 +1,9 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import type { AdminUser } from "@/lib/admin-types"
 import {
-  LEAGUES, LC, SCORE_OPTS, computeStandings,
+  LEAGUES, LC, SCORE_OPTS, checkGameLink, computeStandings,
   type GameResult, type League, type Player, type Schedule,
 } from "@/lib/league"
 
@@ -46,6 +46,38 @@ function Av({ name, color, size = 31, pp }: { name: string; color: string; size?
 function ScoreTag({ s1, s2 }: { s1: number; s2: number }) {
   const col = s1 > s2 ? "#65f396" : s1 < s2 ? "#ff6b7a" : "#c8d6e8"
   return <b style={{ color: col, fontFamily: "var(--font-oxanium), Oxanium", fontSize: 16 }}>{s1} — {s2}</b>
+}
+
+const GAME_LINK_PLACEHOLDER = "https://www.chessigma.com/games/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+function GameLinkField({
+  label, value, onChange,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  const check = checkGameLink(value)
+  return (
+    <>
+      <label className="ac-label">{label} <span style={{ color: "#6a7a8a", fontWeight: 400 }}>(opsional — untuk analisis)</span>
+        <input
+          className="ac-input"
+          type="url"
+          inputMode="url"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={GAME_LINK_PLACEHOLDER}
+        />
+      </label>
+      {!check.ok && value.trim() !== "" && <p className="err-msg">{check.reason}</p>}
+      {check.ok && (
+        <p className="muted" style={{ fontSize: 10, marginTop: 6 }}>
+          <a href={check.url} target="_blank" rel="noopener noreferrer" style={{ color: "#7fadc8" }}>↗ Cek link</a>
+        </p>
+      )}
+    </>
+  )
 }
 
 // ── Admin: Players ────────────────────────────────────────────────────────────
@@ -493,7 +525,7 @@ function AdminSchedule({
   )
 }
 
-// ── Admin: Score & PGN ────────────────────────────────────────────────────────
+// ── Admin: Score & Link Game ──────────────────────────────────────────────────
 function AdminScore({
   players, schedules, setSchedules, results, setResults, setPlayers, token,
 }: {
@@ -508,9 +540,11 @@ function AdminScore({
   const [filterL, setFilterL] = useState<League>("Liga 1")
   const [selId, setSelId] = useState<string>("")
   const [scoreIdx, setScoreIdx] = useState(2)
-  const [pgn, setPgn] = useState("")
+  const [game1, setGame1] = useState("")
+  const [game2, setGame2] = useState("")
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [saveWarning, setSaveWarning] = useState<string | null>(null)
 
   const rMap = useMemo(() => new Map(results.map(r => [r.schedule_id, r])), [results])
   const getPlayer = (id: string) => players.find(p => p.id === id)
@@ -522,13 +556,18 @@ function AdminScore({
   const selectMatch = (id: string) => {
     setSelId(id)
     setSaved(false)
+    setSaveWarning(null)
     const ex = rMap.get(id)
     if (ex) {
-      const idx = SCORE_OPTS.findIndex(o => o.s1 === Number(ex.score1) && o.s2 === Number(ex.score2))
+      // wo ikut dicocokkan, kalau tidak hasil WO akan tertimpa jadi menang biasa.
+      const idx = SCORE_OPTS.findIndex(
+        o => o.s1 === Number(ex.score1) && o.s2 === Number(ex.score2) && o.wo === (ex.wo_player || 0)
+      )
       setScoreIdx(idx >= 0 ? idx : 2)
-      setPgn(ex.pgn || "")
+      setGame1(ex.game1_url || "")
+      setGame2(ex.game2_url || "")
     } else {
-      setScoreIdx(2); setPgn("")
+      setScoreIdx(2); setGame1(""); setGame2("")
     }
   }
 
@@ -540,12 +579,22 @@ function AdminScore({
     try {
       const res = await apiCall("/api/admin/liga/results", token, {
         method: "POST",
-        body: { scheduleId: sel.id, score1: opt.s1, score2: opt.s2, wo: opt.wo, pgn },
+        body: { scheduleId: sel.id, score1: opt.s1, score2: opt.s2, wo: opt.wo, game1Url: game1, game2Url: game2 },
       })
       if (!res.success) throw new Error("Gagal simpan skor")
+      // Skor tetap tersimpan walau kolom link game belum ada di database.
+      const savedLinks = res.warning ? null : { g1: game1.trim() || null, g2: game2.trim() || null }
       setResults(prev => [
         ...prev.filter(r => r.schedule_id !== sel.id),
-        { id: existing?.id || `r${Date.now().toString(36)}`, schedule_id: sel.id, score1: opt.s1, score2: opt.s2, wo_player: opt.wo, pgn: pgn.trim() || undefined },
+        {
+          id: existing?.id || `r${Date.now().toString(36)}`,
+          schedule_id: sel.id,
+          score1: opt.s1,
+          score2: opt.s2,
+          wo_player: opt.wo,
+          game1_url: savedLinks?.g1 ?? existing?.game1_url ?? null,
+          game2_url: savedLinks?.g2 ?? existing?.game2_url ?? null,
+        },
       ])
       setSchedules(prev => prev.map(s => s.id === sel.id ? { ...s, status: "completed" } : s))
       const previousWo = existing?.wo_player || 0
@@ -559,7 +608,8 @@ function AdminScore({
         }))
       }
       setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+      setSaveWarning(typeof res.warning === "string" ? res.warning : null)
+      setTimeout(() => { setSaved(false); setSaveWarning(null) }, 6000)
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal simpan skor")
     } finally {
@@ -590,7 +640,7 @@ function AdminScore({
                 </div>
                 <div className="smi-right">
                   {r ? <ScoreTag s1={Number(r.score1)} s2={Number(r.score2)} /> : <span className="smi-pending">{s.status === "live" ? "🔴 LIVE" : "—"}</span>}
-                  {r?.pgn && <span className="pgn-dot" title="PGN tersedia">PGN</span>}
+                  {(r?.game1_url || r?.game2_url) && <span className="link-dot" title="Link game tersedia">LINK</span>}
                 </div>
               </div>
             )
@@ -601,7 +651,7 @@ function AdminScore({
 
       {sel ? (
         <form className="admin-card" onSubmit={submit}>
-          <h3 className="ac-title">Update Skor & PGN</h3>
+          <h3 className="ac-title">Update Skor &amp; Link Game</h3>
           <div className="match-preview">
             <div className="mp-player">
               <Av name={getPlayer(sel.player1_id)?.name || "?"} color={LC[filterL].color} size={36} pp={getPlayer(sel.player1_id)?.pp} />
@@ -618,18 +668,22 @@ function AdminScore({
               {SCORE_OPTS.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
             </select>
           </label>
-          <label className="ac-label">PGN Pertandingan <span style={{ color: "#6a7a8a", fontWeight: 400 }}>(opsional — untuk analisis papan)</span>
-            <textarea className="ac-input ac-pgn" value={pgn} onChange={e => setPgn(e.target.value)} placeholder={"Paste PGN di sini...\nContoh: 1. e4 e5 2. Nf3 Nc6 3. Bb5..."} rows={5} />
-          </label>
+          <GameLinkField label="Link Game 1" value={game1} onChange={setGame1} />
+          <GameLinkField label="Link Game 2" value={game2} onChange={setGame2} />
+          <p className="muted" style={{ fontSize: 10, marginTop: 12, lineHeight: 1.6 }}>
+            Tempel link halaman game di chessigma.com. Player bisa membukanya lewat tab
+            03 · Results di halaman liga, lalu memilih game 1 atau game 2.
+          </p>
           <button className="primary-btn" type="submit" style={{ width: "100%", background: saved ? "#1c4a2a" : undefined, borderColor: saved ? "#65f396" : undefined }} disabled={saving}>
-            {saving ? "Menyimpan…" : saved ? "✓ Skor & PGN Tersimpan!" : "Simpan Skor & PGN"}
+            {saving ? "Menyimpan…" : saved ? "✓ Skor Tersimpan!" : "Simpan Skor"}
           </button>
+          {saveWarning && <p className="err-msg">{saveWarning}</p>}
         </form>
       ) : (
         <div className="admin-card" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 260 }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>←</div>
-            <p className="muted">Pilih match dari daftar untuk update skor dan input PGN</p>
+            <p className="muted">Pilih match dari daftar untuk update skor dan link game</p>
           </div>
         </div>
       )}
@@ -867,7 +921,7 @@ export default function LeagueAdmin() {
             <div>
               <p className="eyebrow">CONTROL ROOM</p>
               <h2 style={{ fontSize: 40 }}>Admin Liga</h2>
-              <p>Masuk untuk mengelola peserta, jadwal, skor & PGN, dan transisi season.</p>
+              <p>Masuk untuk mengelola peserta, jadwal, skor &amp; link game, dan transisi season.</p>
             </div>
           </div>
           <form className="admin-card" style={{ maxWidth: 480, marginTop: 20 }} onSubmit={handleLogin}>
@@ -904,7 +958,7 @@ export default function LeagueAdmin() {
           <div>
             <p className="eyebrow">CONTROL ROOM</p>
             <h2>Admin Dashboard Liga</h2>
-            <p>Kelola peserta, jadwal, skor & PGN, dan transisi season dari satu tempat.</p>
+            <p>Kelola peserta, jadwal, skor &amp; link game, dan transisi season dari satu tempat.</p>
           </div>
           <span className="admin-badge">● TERHUBUNG SUPABASE</span>
         </div>
@@ -912,7 +966,7 @@ export default function LeagueAdmin() {
         <div className="admin-tabs">
           {(["players", "schedule", "score", "season", "sheet"] as AdminTab[]).map(t => (
             <button key={t} className={`admin-tab-btn ${tab === t ? "atb-active" : ""}`} onClick={() => setTab(t)}>
-              {t === "players" ? "👥 Peserta" : t === "schedule" ? "📅 Jadwal" : t === "score" ? "📊 Skor & PGN" : t === "season" ? "🔄 Transisi Season" : "🔗 Spreadsheet"}
+              {t === "players" ? "👥 Peserta" : t === "schedule" ? "📅 Jadwal" : t === "score" ? "📊 Skor & Link Game" : t === "season" ? "🔄 Transisi Season" : "🔗 Spreadsheet"}
             </button>
           ))}
         </div>

@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS tco_league_players (
   username TEXT NOT NULL DEFAULT '',
   league TEXT NOT NULL DEFAULT 'Liga 1' CHECK (league IN ('Liga 1', 'Liga 2', 'Liga 3', 'Liga 4')),
   elo INTEGER NOT NULL DEFAULT 1000,
+  peak_blitz INTEGER NOT NULL DEFAULT 0,
   wo_count INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disqualified'))
 );
@@ -137,13 +138,16 @@ CREATE TABLE IF NOT EXISTS tco_league_schedules (
   status TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'live', 'completed'))
 );
 
--- Hasil pertandingan + PGN untuk analisis
+-- Hasil pertandingan + link game Chessigma (2 game per match) untuk analisis
 CREATE TABLE IF NOT EXISTS tco_league_results (
   id TEXT PRIMARY KEY,
   created_at TIMESTAMPTZ DEFAULT now(),
   schedule_id TEXT UNIQUE NOT NULL,
   score1 NUMERIC NOT NULL DEFAULT 0,
   score2 NUMERIC NOT NULL DEFAULT 0,
+  wo_player INTEGER NOT NULL DEFAULT 0 CHECK (wo_player IN (0, 1, 2)),
+  game1_url TEXT DEFAULT NULL,
+  game2_url TEXT DEFAULT NULL,
   pgn TEXT DEFAULT NULL
 );
 
@@ -173,3 +177,20 @@ CREATE INDEX IF NOT EXISTS idx_league_players_league ON tco_league_players(leagu
 CREATE INDEX IF NOT EXISTS idx_league_schedules_league ON tco_league_schedules(league);
 CREATE INDEX IF NOT EXISTS idx_league_schedules_status ON tco_league_schedules(status);
 CREATE INDEX IF NOT EXISTS idx_league_results_schedule ON tco_league_results(schedule_id);
+
+ALTER TABLE tco_league_schedules
+  ADD CONSTRAINT league_schedule_players_different CHECK (player1_id <> player2_id) NOT VALID;
+ALTER TABLE tco_league_schedules
+  ADD CONSTRAINT league_schedule_player1_fk FOREIGN KEY (player1_id) REFERENCES tco_league_players(id) NOT VALID;
+ALTER TABLE tco_league_schedules
+  ADD CONSTRAINT league_schedule_player2_fk FOREIGN KEY (player2_id) REFERENCES tco_league_players(id) NOT VALID;
+ALTER TABLE tco_league_results
+  ADD CONSTRAINT league_result_score_valid CHECK (score1 >= 0 AND score2 >= 0 AND score1 + score2 = 2) NOT VALID;
+ALTER TABLE tco_league_results
+  ADD CONSTRAINT league_result_game1_url_valid
+  CHECK (game1_url IS NULL OR game1_url ~ '^https://(www\.)?chessigma\.com/[^[:space:]]*$') NOT VALID;
+ALTER TABLE tco_league_results
+  ADD CONSTRAINT league_result_game2_url_valid
+  CHECK (game2_url IS NULL OR game2_url ~ '^https://(www\.)?chessigma\.com/[^[:space:]]*$') NOT VALID;
+ALTER TABLE tco_league_results
+  ADD CONSTRAINT league_result_schedule_fk FOREIGN KEY (schedule_id) REFERENCES tco_league_schedules(id) NOT VALID;

@@ -144,6 +144,19 @@ const INIT_RESULTS: GameResult[] = [
 function computeStandings(players: Player[], schedules: Schedule[], results: GameResult[]) {
   const rMap = new Map(results.map(r => [r.scheduleId, r]));
   type Stat = { mp: number; w: number; d: number; l: number; pts: number };
+  // Match = 2 game, jadi skor split (x.5) berarti 1 menang + 1 remis.
+  //   2-0 -> W | 1.5-0.5 -> W + D | 1-1 -> D | 0.5-1.5 -> D | 0-2 -> L
+  const isSplitScore_ = (score: number) => Math.abs(score - Math.round(score)) > 0.001;
+  const outcomeFromScore_ = (score: number, opponent: number) => {
+    if (score === opponent) return "D";
+    if (score > opponent) return isSplitScore_(score) ? "WD" : "W";
+    return isSplitScore_(score) ? "D" : "L";
+  };
+  const applyOutcome_ = (side: Stat, outcome: string) => {
+    if (outcome.includes("W")) side.w++;
+    if (outcome.includes("D")) side.d++;
+    if (outcome.includes("L")) side.l++;
+  };
   const stats = new Map<string, Stat>(players.map(p => [p.id, { mp: 0, w: 0, d: 0, l: 0, pts: 0 }]));
   for (const s of schedules) {
     if (s.status !== "completed") continue;
@@ -151,8 +164,8 @@ function computeStandings(players: Player[], schedules: Schedule[], results: Gam
     if (!r) continue;
     const s1 = stats.get(s.player1Id);
     const s2 = stats.get(s.player2Id);
-    if (s1) { s1.mp++; s1.pts += r.score1; if (r.score1 > r.score2) s1.w++; else if (r.score1 === r.score2) s1.d++; else s1.l++; }
-    if (s2) { s2.mp++; s2.pts += r.score2; if (r.score2 > r.score1) s2.w++; else if (r.score2 === r.score1) s2.d++; else s2.l++; }
+    if (s1) { s1.mp++; s1.pts += r.score1; applyOutcome_(s1, outcomeFromScore_(r.score1, r.score2)); }
+    if (s2) { s2.mp++; s2.pts += r.score2; applyOutcome_(s2, outcomeFromScore_(r.score2, r.score1)); }
   }
   return players.map(p => ({ ...p, ...stats.get(p.id)! })).sort((a, b) => b.pts - a.pts || b.w - a.w || b.elo - a.elo);
 }

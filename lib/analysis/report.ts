@@ -215,7 +215,7 @@ function trainingRecommendations(
       title: "Titik Balik",
       detail: `${criticalCount} critical moment dengan swing besar. Latih deteksi ancaman sebelum mengubah rencana.`,
       topics: ["critical-moment", "kalkulasi"],
-      href: "/arena-training/analysis",
+      href: "/arena-training",
     })
   }
   return recs.slice(0, 4)

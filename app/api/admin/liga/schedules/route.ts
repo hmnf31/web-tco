@@ -37,8 +37,19 @@ export async function POST(request: Request) {
   if (!clean.player1_id || !clean.player2_id || clean.player1_id === clean.player2_id) {
     return NextResponse.json({ error: "Pilih dua player yang berbeda" }, { status: 400 })
   }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(clean.date || "") || !/^\d{2}:\d{2}$/.test(clean.time || "")) {
+    return NextResponse.json({ error: "Tanggal atau jam tidak valid" }, { status: 400 })
+  }
 
   const supabase = getSupabaseAdmin()
+  const { data: players, error: playersError } = await (supabase as any)
+    .from("tco_league_players")
+    .select("id, league")
+    .in("id", [clean.player1_id, clean.player2_id])
+  if (playersError) return NextResponse.json({ error: playersError.message }, { status: 500 })
+  if (!players || players.length !== 2 || players.some((player: { league: League }) => player.league !== clean.league)) {
+    return NextResponse.json({ error: "Kedua player harus terdaftar di liga yang sama" }, { status: 400 })
+  }
   if (body.id) {
     const { error } = await (supabase as any)
       .from("tco_league_schedules")

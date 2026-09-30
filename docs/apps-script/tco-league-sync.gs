@@ -4,6 +4,10 @@
  *  1. Script Properties (Project Settings ⚙): tidak wajib kalau pakai versi READY.
  *  2. Jalankan ENABLE_AUTO_SYNC sekali → otomatis tiap 5 menit.
  *  3. Deploy → New deployment → Web app → Execute as Me / Anyone.
+ *
+ * Kolom RESULTS: score1 | score2 | wo_player | game1_url | game2_url
+ * game1_url / game2_url diisi link halaman game di chessigma.com, satu link per game.
+ * Kosongkan kalau link-nya belum diinput di panel admin Liga.
  */
 
 // ── KONSTANTA ────────────────────────────────────────────────────────────────────
@@ -34,7 +38,7 @@ function headers_(tab) {
   var map = {
     PLAYERS:   ["id","name","username","league","elo","elo_avg","pp","wo_count","status"],
     SCHEDULES: ["id","league","round","player1_id","player2_id","date","time","status"],
-    RESULTS:   ["id","schedule_id","score1","score2","pgn"],
+    RESULTS:   ["id","schedule_id","score1","score2","wo_player","game1_url","game2_url"],
     SEASON:    ["season"]
   };
   return map[tab] || [];
@@ -82,7 +86,8 @@ function pullFromWebsite(ss) {
   });
   var results = (body.results || []).map(function (r) {
     return { id: r.id, schedule_id: r.schedule_id,
-             score1: r.score1, score2: r.score2, pgn: r.pgn || "" };
+             score1: r.score1, score2: r.score2, wo_player: r.wo_player || "",
+             game1_url: r.game1_url || "", game2_url: r.game2_url || "" };
   });
   writeRows_(ss, "PLAYERS", headers_("PLAYERS"), players);
   writeRows_(ss, "SCHEDULES", headers_("SCHEDULES"), schedules);
@@ -93,12 +98,17 @@ function pullFromWebsite(ss) {
 
 // IMPORT: Spreadsheet → Website (butuh x-sheet-secret dibolehkan admin)
 function importFromSheet(ss) {
-  return callJson_("/api/admin/liga/sheet-sync", { method: "POST", body: {
+  var res = callJson_("/api/admin/liga/sheet-sync", { method: "POST", body: {
     action: "import",
     players: rowsFromSheet_(ss, "PLAYERS"),
     schedules: rowsFromSheet_(ss, "SCHEDULES"),
     results: rowsFromSheet_(ss, "RESULTS")
   }});
+  // Server mengulang import tanpa kolom link game kalau migration-nya belum jalan.
+  if (res && res.imported && res.imported.linksSkipped) {
+    console.warn(res.imported.linksSkipped + " hasil tersimpan tanpa link game. Jalankan migration 20260930000000_add_league_game_links.sql.");
+  }
+  return res;
 }
 
 function rowsFromSheet_(ss, tab) {
